@@ -1,0 +1,181 @@
+{
+  "assumptions": {
+    "baseline_latency_ms": 42.0,
+    "downlink_value_usd_per_gb": 0.02,
+    "energy_j_per_downlink_byte": 2.5e-06,
+    "ensemble_members": 3,
+    "flight_availability": 0.9995,
+    "non_useful_score_distribution": "Beta(2.0, 6.5)",
+    "scene_bytes_uniform": [
+      40000000,
+      120000000
+    ],
+    "selector_cost_usd_per_mission": 1.5,
+    "selector_energy_j_per_scene": 18.0,
+    "selector_overhead_ms": 7.5,
+    "useful_prevalence": 0.35,
+    "useful_score_distribution": "Beta(7.0, 2.1)"
+  },
+  "claim_boundaries": {
+    "cloudsen12_measured": false,
+    "real_energy_savings_proven": false,
+    "real_satellite_measured": false,
+    "realized_economic_savings_proven": false
+  },
+  "classification": "SIMULATED_SYNTHETIC_NOT_FLIGHT_EVIDENCE",
+  "experiment": "EDEN-SAT-001-SIM-002",
+  "measurement_register": {
+    "cloudsen12_performance": {
+      "dataset_manifest_sha256": null,
+      "measured_accuracy": null,
+      "measured_recall": null,
+      "status": "NOT_MEASURED",
+      "test_split_sha256": null
+    },
+    "economic_savings": {
+      "currency": "USD",
+      "invoice_or_ledger_evidence_sha256": null,
+      "status": "MODELED_ONLY"
+    },
+    "flight_performance": {
+      "assumed_availability": 0.9995,
+      "measured_missions": 0,
+      "status": "SIMULATED_ONLY"
+    },
+    "hardware_energy_savings": {
+      "hardware_model": null,
+      "power_meter_trace_sha256": null,
+      "status": "MODELED_ONLY"
+    }
+  },
+  "metrics": {
+    "accuracy": {
+      "mean": 0.9986275,
+      "p05": 0.998,
+      "p50": 0.9987,
+      "p95": 0.9992000000000001
+    },
+    "baseline_bytes": {
+      "mean": 800188521693.195,
+      "p05": 796608111599.95,
+      "p50": 799979008434.5,
+      "p95": 803982014857.7
+    },
+    "downlink_reduction_fraction": {
+      "mean": 0.6504763427240927,
+      "p05": 0.6421839267189086,
+      "p50": 0.6502585008224608,
+      "p95": 0.6584943100413253
+    },
+    "downlinked_bytes": {
+      "mean": 279685225893.285,
+      "p05": 272872534256.5,
+      "p50": 279900676563.0,
+      "p95": 286157555465.95
+    },
+    "f1": {
+      "mean": 0.9980373742362366,
+      "p05": 0.9971172833164264,
+      "p50": 0.9980988446375983,
+      "p95": 0.9988558515995077
+    },
+    "false_discard_rate_useful": {
+      "mean": 0.002201389314968241,
+      "p05": 0.0011415036853885184,
+      "p50": 0.002254474840305385,
+      "p95": 0.003683867550354176
+    },
+    "modeled_flight_adjusted_recall": {
+      "mean": 0.9972997113796893,
+      "p05": 0.995817974383421,
+      "p50": 0.9972466523971149,
+      "p95": 0.9983590670664542
+    },
+    "modeled_gross_economic_value_usd": {
+      "mean": 10.4100659159982,
+      "p05": 10.277910402067,
+      "p50": 10.402581682170002,
+      "p95": 10.562173600596
+    },
+    "modeled_gross_energy_avoided_j": {
+      "mean": 1301258.2394997752,
+      "p05": 1284738.8002583752,
+      "p50": 1300322.71027125,
+      "p95": 1320271.7000745
+    },
+    "modeled_latency_ms": {
+      "mean": 49.5,
+      "p05": 49.5,
+      "p50": 49.5,
+      "p95": 49.5
+    },
+    "modeled_net_economic_value_usd": {
+      "mean": 8.9100659159982,
+      "p05": 8.777910402067,
+      "p50": 8.902581682170002,
+      "p95": 9.062173600596
+    },
+    "modeled_net_energy_avoided_j": {
+      "mean": 1121258.2394997752,
+      "p05": 1104738.8002583752,
+      "p50": 1120322.71027125,
+      "p95": 1140271.7000745002
+    },
+    "modeled_selector_energy_j": {
+      "mean": 180000.0,
+      "p05": 180000.0,
+      "p50": 180000.0,
+      "p95": 180000.0
+    },
+    "precision": {
+      "mean": 0.9982767997445867,
+      "p05": 0.9971353622347106,
+      "p50": 0.998287915223509,
+      "p95": 0.9994257906123
+    },
+    "recall": {
+      "mean": 0.9977986106850318,
+      "p05": 0.9963161324496459,
+      "p50": 0.9977455251596946,
+      "p95": 0.9988584963146114
+    },
+    "safe_downlink_reduction_fraction": {
+      "mean": 0.6497170436313872,
+      "p05": 0.6418516653279195,
+      "p50": 0.6493776144262428,
+      "p95": 0.6577552426260189
+    },
+    "safely_avoided_bytes": {
+      "mean": 519895747933.29,
+      "p05": 513548633694.44995,
+      "p50": 519461194003.5,
+      "p95": 527239723810.25
+    },
+    "specificity": {
+      "mean": 0.9990733417968908,
+      "p05": 0.9984565973055571,
+      "p50": 0.9990798946612724,
+      "p95": 0.999690433565671
+    },
+    "unsafe_avoided_bytes": {
+      "mean": 607547866.62,
+      "p05": 259944314.05,
+      "p50": 592809902.0,
+      "p95": 1082670210.9499996
+    },
+    "unsafe_avoided_fraction": {
+      "mean": 0.0007592990927055406,
+      "p05": 0.00032368544305368856,
+      "p50": 0.0007394316861208247,
+      "p95": 0.0013554819798873464
+    }
+  },
+  "mission_gate_pass_rate": 1.0,
+  "missions": 200,
+  "quality_gate_recall": 0.99,
+  "result_payload_sha256": "e3d9934431d6176b70aa2559bdf35c96954fdd1d1aed42e43f54873b2cfb26f1",
+  "scenes_per_mission": 10000,
+  "seed": 20260811,
+  "selected_threshold": 0.5195418100970273,
+  "total_test_scenes": 2000000
+}
