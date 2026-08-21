@@ -1,0 +1,122 @@
+{
+  "assumptions": {
+    "baseline_latency_ms": 42.0,
+    "energy_j_per_downlink_byte": 2.5e-06,
+    "non_useful_score_distribution": "Beta(2.0, 6.5)",
+    "scene_bytes_uniform": [
+      40000000,
+      120000000
+    ],
+    "selector_overhead_ms": 7.5,
+    "useful_prevalence": 0.35,
+    "useful_score_distribution": "Beta(7.0, 2.1)"
+  },
+  "claim_boundaries": {
+    "cloudsen12_measured": false,
+    "real_energy_savings_proven": false,
+    "real_satellite_measured": false,
+    "realized_economic_savings_proven": false
+  },
+  "classification": "SIMULATED_SYNTHETIC_NOT_FLIGHT_EVIDENCE",
+  "experiment": "EDEN-SAT-001-SIM-001",
+  "metrics": {
+    "accuracy": {
+      "mean": 0.8816195,
+      "p05": 0.8761950000000001,
+      "p50": 0.8818,
+      "p95": 0.887205
+    },
+    "baseline_bytes": {
+      "mean": 800002542745.175,
+      "p05": 796638102840.1001,
+      "p50": 799959384252.5,
+      "p95": 803727627982.4
+    },
+    "downlink_reduction_fraction": {
+      "mean": 0.5350320529666158,
+      "p05": 0.5273352709856467,
+      "p50": 0.5348105702361556,
+      "p95": 0.543023558414962
+    },
+    "downlinked_bytes": {
+      "mean": 371976741341.025,
+      "p05": 365690374750.39996,
+      "p50": 372093061265.5,
+      "p95": 379125999833.55
+    },
+    "f1": {
+      "mean": 0.8547598097607907,
+      "p05": 0.8480668484672638,
+      "p50": 0.8549108334451576,
+      "p95": 0.8614509994731594
+    },
+    "false_discard_rate_useful": {
+      "mean": 0.005157788461526104,
+      "p05": 0.003392036886956069,
+      "p50": 0.005106389554025079,
+      "p95": 0.007265164208106986
+    },
+    "modeled_energy_avoided_j": {
+      "mean": 1070064.503510375,
+      "p05": 1054398.688871125,
+      "p50": 1069688.2983675,
+      "p95": 1087941.2745158751
+    },
+    "modeled_latency_ms": {
+      "mean": 49.5,
+      "p05": 49.5,
+      "p50": 49.5,
+      "p95": 49.5
+    },
+    "precision": {
+      "mean": 0.7492831248178914,
+      "p05": 0.7391581125269687,
+      "p50": 0.7491582610012693,
+      "p95": 0.7594167155816135
+    },
+    "recall": {
+      "mean": 0.9948422115384739,
+      "p05": 0.992734835791893,
+      "p50": 0.9948936104459749,
+      "p95": 0.9966079631130439
+    },
+    "safe_downlink_reduction_fraction": {
+      "mean": 0.5332236501088584,
+      "p05": 0.5253742635820269,
+      "p50": 0.5330071352682682,
+      "p95": 0.5411968597751092
+    },
+    "safely_avoided_bytes": {
+      "mean": 426579097222.27,
+      "p05": 420164219646.8,
+      "p50": 426476647056.0,
+      "p95": 433905435142.2
+    },
+    "specificity": {
+      "mean": 0.820603612545968,
+      "p05": 0.8121884648884808,
+      "p50": 0.8209926285942939,
+      "p95": 0.8282972036922206
+    },
+    "unsafe_avoided_bytes": {
+      "mean": 1446704181.88,
+      "p05": 924226437.9000001,
+      "p50": 1446950862.5,
+      "p95": 2037591630.9499998
+    },
+    "unsafe_avoided_fraction": {
+      "mean": 0.0018084028577574239,
+      "p05": 0.001163723489861677,
+      "p50": 0.0018091945939777555,
+      "p95": 0.002539728477741323
+    }
+  },
+  "mission_gate_pass_rate": 1.0,
+  "missions": 200,
+  "quality_gate_recall": 0.99,
+  "result_payload_sha256": "ca37e1646cfe29e9ce77ace4228d111cbd47af057af4cb3ff375a3b2e57824c0",
+  "scenes_per_mission": 10000,
+  "seed": 20260811,
+  "selected_threshold": 0.36271221140500626,
+  "total_test_scenes": 2000000
+}
