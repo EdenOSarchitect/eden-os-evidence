@@ -1,0 +1,43 @@
+name: evidence-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  sat001-reproducibility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile SAT-001 simulator
+        run: python -m py_compile sat-001/run_simulation.py
+      - name: Re-run deterministic SAT-001 simulation
+        run: python sat-001/run_simulation.py > /tmp/sat001-output.json
+      - name: Compare deterministic result with committed SIM-002
+        run: diff -u sat-001/results/SIM_002.json sat-001/RESULTS.json
+      - name: Enforce SAT-001 truth boundaries
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          data = json.loads(Path('sat-001/results/SIM_002.json').read_text())
+          assert data['classification'] == 'SIMULATED_SYNTHETIC_NOT_FLIGHT_EVIDENCE'
+          boundaries = data['claim_boundaries']
+          assert boundaries['cloudsen12_measured'] is False
+          assert boundaries['real_satellite_measured'] is False
+          assert boundaries['real_energy_savings_proven'] is False
+          assert boundaries['realized_economic_savings_proven'] is False
+          register = data['measurement_register']
+          assert register['cloudsen12_performance']['status'] == 'NOT_MEASURED'
+          assert register['flight_performance']['status'] == 'SIMULATED_ONLY'
+          assert register['hardware_energy_savings']['status'] == 'MODELED_ONLY'
+          assert register['economic_savings']['status'] == 'MODELED_ONLY'
+          print('SAT-001 evidence boundary checks passed')
+          PY
+      - name: Ensure generated scratch result is not committed by the test
+        run: rm -f sat-001/RESULTS.json
