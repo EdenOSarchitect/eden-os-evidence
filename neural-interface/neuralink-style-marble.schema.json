@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edenrefinery.com/schemas/neuralink-style-marble.schema.json",
+  "title": "EDEN Neural-Interface Marble",
+  "description": "Synthetic neural-interface provenance envelope. This schema does not represent a live Neuralink device connection or real neural telemetry.",
+  "type": "object",
+  "required": ["marble_id", "evidence_class", "source", "timestamp_utc", "signal", "provenance"],
+  "properties": {
+    "marble_id": {"type": "string"},
+    "evidence_class": {"const": "SIMULATED"},
+    "source": {
+      "type": "object",
+      "required": ["device_class", "device_connected"],
+      "properties": {
+        "device_class": {"const": "neural-interface-synthetic"},
+        "device_connected": {"const": false},
+        "vendor_claim": {"const": "NO_LIVE_NEURALINK_CONNECTION"}
+      }
+    },
+    "timestamp_utc": {"type": "string", "format": "date-time"},
+    "signal": {
+      "type": "object",
+      "required": ["sample_rate_hz", "channels", "window_ms", "encoding", "samples"],
+      "properties": {
+        "sample_rate_hz": {"type": "number", "minimum": 1},
+        "channels": {"type": "integer", "minimum": 1},
+        "window_ms": {"type": "number", "minimum": 1},
+        "encoding": {"const": "synthetic-normalized-int16"},
+        "samples": {"type": "array", "items": {"type": "integer", "minimum": -32768, "maximum": 32767}}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["payload_sha256", "prev_marble_sha256", "truth_boundary"],
+      "properties": {
+        "payload_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "prev_marble_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "truth_boundary": {"const": "Synthetic neural-interface data only; not physiological evidence, medical telemetry, or a Neuralink device measurement."}
+      }
+    }
+  },
+  "additionalProperties": false
+}
