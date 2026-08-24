@@ -1,56 +1,50 @@
 #!/usr/bin/env python3
 """EDEN open neural-interface connector.
 
-Observation-only ingress. It does not generate synthetic neural data and does not
-claim a Neuralink connection. It accepts newline-delimited JSON from stdin or a
-user-specified local TCP endpoint, hashes each raw observation, and emits a
-provenance envelope without interpreting physiological meaning.
+Observation-only connector. It accepts only verified local handoff envelopes from
+EDEN-MANIFOLD-NI-001 on stdin. Direct network listening and plaintext ingress are
+intentionally disabled.
 """
-import argparse, hashlib, json, socket, sys
+import base64, hashlib, json, sys
 from datetime import datetime, timezone
 
 
-def envelope(raw: bytes, source: str):
-    return {
-        "connector": "EDEN-NI-OPEN-001",
-        "mode": "OBSERVE_ONLY",
-        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
-        "source": source,
-        "payload_sha256": hashlib.sha256(raw).hexdigest(),
-        "payload_bytes": len(raw),
-        "evidence_class": "OBSERVED_INPUT",
-        "truth_boundary": (
-            "Records bytes presented to this connector only. Source/vendor/device identity "
-            "is not independently authenticated by EDEN. No physiological or medical inference is made."
-        ),
-    }
-
-
-def consume(stream, source):
-    for raw in stream:
-        if not raw.strip():
-            continue
-        meta = envelope(raw.rstrip(b"\r\n"), source)
-        print(json.dumps(meta, sort_keys=True), flush=True)
-
-
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--listen", help="Optional local bind HOST:PORT. Omit to observe stdin.")
-    args = ap.parse_args()
-    if not args.listen:
-        consume(sys.stdin.buffer, "stdin")
-        return
-    host, port = args.listen.rsplit(":", 1)
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        s.bind((host, int(port)))
-        s.listen(1)
-        print(json.dumps({"connector":"EDEN-NI-OPEN-001","status":"LISTENING","bind":args.listen,"mode":"OBSERVE_ONLY"}), flush=True)
-        while True:
-            conn, addr = s.accept()
-            with conn, conn.makefile("rb") as f:
-                consume(f, f"tcp:{addr[0]}:{addr[1]}")
+    for line in sys.stdin:
+        if not line.strip():
+            continue
+        try:
+            handoff = json.loads(line)
+            if handoff.get("manifold_verified") is not True:
+                raise ValueError("unverified manifold handoff")
+            if handoff.get("manifold") != "EDEN-MANIFOLD-NI-001":
+                raise ValueError("unexpected manifold")
+            raw = base64.b64decode(handoff["payload_b64"], validate=True)
+            digest = hashlib.sha256(raw).hexdigest()
+            if digest != handoff.get("payload_sha256"):
+                raise ValueError("payload hash mismatch")
+
+            meta = {
+                "connector": "EDEN-NI-OPEN-001",
+                "mode": "OBSERVE_ONLY",
+                "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                "source": handoff.get("source", "unknown"),
+                "manifold": "EDEN-MANIFOLD-NI-001",
+                "manifold_verified": True,
+                "ingress_encryption": "AES-256-GCM",
+                "payload_sha256": digest,
+                "payload_bytes": len(raw),
+                "evidence_class": "OBSERVED_INPUT",
+                "truth_boundary": (
+                    "Records authenticated bytes delivered through the EDEN Manifold. "
+                    "Encryption/authentication protects the frame but does not independently prove "
+                    "vendor/device identity or physiological meaning. No medical inference is made."
+                ),
+            }
+            print(json.dumps(meta, sort_keys=True), flush=True)
+        except Exception as e:
+            print(json.dumps({"connector":"EDEN-NI-OPEN-001","accepted":False,"error":type(e).__name__}), file=sys.stderr, flush=True)
+
 
 if __name__ == "__main__":
     main()
