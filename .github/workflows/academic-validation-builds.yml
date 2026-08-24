@@ -1,0 +1,42 @@
+name: Academic validation builds
+
+on:
+  push:
+    paths:
+      - 'validation-builds/**'
+      - '.github/workflows/academic-validation-builds.yml'
+  pull_request:
+    paths:
+      - 'validation-builds/**'
+      - '.github/workflows/academic-validation-builds.yml'
+  workflow_dispatch:
+
+jobs:
+  run-validation-harnesses:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        script:
+          - vural_ntn.py
+          - macdonald_orbital_compute.py
+          - vasile_chrononav.py
+          - evans_testbed_adapter.py
+          - simeonidou_network.py
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile
+        run: python -m py_compile "validation-builds/${{ matrix.script }}"
+      - name: Run deterministic default experiment
+        run: |
+          mkdir -p validation-results
+          python "validation-builds/${{ matrix.script }}" > "validation-results/${{ matrix.script }}.json"
+          cat "validation-results/${{ matrix.script }}.json"
+      - name: Upload raw JSON result
+        uses: actions/upload-artifact@v4
+        with:
+          name: "${{ matrix.script }}-result"
+          path: "validation-results/${{ matrix.script }}.json"
