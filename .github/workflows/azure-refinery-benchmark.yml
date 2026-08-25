@@ -1,0 +1,63 @@
+name: Azure Refinery Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      requests:
+        description: Number of Azure model requests
+        required: true
+        default: "1000"
+      concurrency:
+        description: Parallel workers
+        required: true
+        default: "16"
+  push:
+    paths:
+      - "azure-refinery/**"
+      - ".github/workflows/azure-refinery-benchmark.yml"
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    env:
+      AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+      AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+      AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
+      EDEN_REQUESTS: ${{ github.event.inputs.requests || '1000' }}
+      EDEN_CONCURRENCY: ${{ github.event.inputs.concurrency || '16' }}
+      EDEN_MAX_OUTPUT_TOKENS: "96"
+  
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify Azure configuration is present
+        shell: bash
+        run: |
+          missing=0
+          for v in AZURE_OPENAI_ENDPOINT AZURE_OPENAI_API_KEY AZURE_OPENAI_DEPLOYMENT; do
+            if [ -z "${!v}" ]; then echo "Missing GitHub Actions secret: $v"; missing=1; fi
+          done
+          if [ "$missing" -ne 0 ]; then exit 78; fi
+
+      - name: Run measured Azure workload through EDEN evidence refinery
+        run: python azure-refinery/azure_refinery_benchmark.py
+
+      - name: Verify manifest and hashes
+        if: always()
+        shell: bash
+        run: |
+          if [ -f azure-refinery/results/manifest.json ]; then
+            python -m json.tool azure-refinery/results/manifest.json
+            sha256sum azure-refinery/results/records.jsonl azure-refinery/results/manifest.json
+          fi
+
+      - name: Upload independent evidence bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: azure-refinery-evidence-${{ github.run_id }}
+          path: azure-refinery/results/
+          if-no-files-found: warn
