@@ -41,3 +41,17 @@ jobs:
           PY
       - name: Ensure generated scratch result is not committed by the test
         run: rm -f sat-001/RESULTS.json
+
+  manifold-auth-001:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Manifold crypto dependency
+        run: python -m pip install --disable-pip-version-check cryptography
+      - name: Compile Manifold ingress modules
+        run: python -m py_compile neural-interface/manifold_encrypt.py neural-interface/manifold_gate.py neural-interface/open_connector.py neural-interface/test_manifold_auth.py
+      - name: Run MANIFOLD-AUTH-001 tamper/replay regression suite
+        run: python neural-interface/test_manifold_auth.py
