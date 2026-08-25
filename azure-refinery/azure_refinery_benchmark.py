@@ -6,7 +6,7 @@ input/output records, hashes every record, and emits an auditable Merkle root.
 No secrets are written to output.
 """
 import concurrent.futures as cf
-import hashlib, json, os, statistics, time, urllib.request, urllib.error
+import hashlib, json, os, statistics, time, urllib.request, urllib.error, urllib.parse
 from pathlib import Path
 
 ENDPOINT = os.environ["AZURE_OPENAI_ENDPOINT"].rstrip("/")
@@ -18,8 +18,6 @@ MAX_OUTPUT = int(os.getenv("EDEN_MAX_OUTPUT_TOKENS", "96"))
 OUT = Path(os.getenv("EDEN_OUTPUT_DIR", "azure-refinery/results"))
 OUT.mkdir(parents=True, exist_ok=True)
 
-# Public, deterministic workload generator. Every prompt is reproducible from
-# this source file + request index; no private benchmark data is required.
 def prompt_for(i: int) -> str:
     a = (i * 7919 + 104729) % 1000003
     b = (i * 15485863 + 32452843) % 10000019
@@ -38,7 +36,6 @@ def sha(obj):
     return hashlib.sha256(canon(obj)).hexdigest()
 
 def refinery_envelope(i, prompt, response_text):
-    # Deterministic evidence envelope; this does not claim semantic correctness.
     return {
         "schema": "eden.refinery.azure.v1",
         "index": i,
@@ -51,48 +48,49 @@ def refinery_envelope(i, prompt, response_text):
 def call_one(i):
     prompt = prompt_for(i)
     payload = {"model": MODEL, "input": prompt, "max_output_tokens": MAX_OUTPUT}
-    req = urllib.request.Request(
-        ENDPOINT + "/openai/v1/responses",
-        data=json.dumps(payload).encode(),
-        headers={"Content-Type":"application/json", "api-key":KEY},
-        method="POST",
-    )
-    t0 = time.perf_counter()
-    try:
-        with urllib.request.urlopen(req, timeout=120) as r:
-            raw = r.read()
-        elapsed = time.perf_counter() - t0
-        obj = json.loads(raw)
-        text = obj.get("output_text")
-        if text is None:
-            parts=[]
-            for item in obj.get("output",[]):
-                for c in item.get("content",[]):
-                    if c.get("type") in ("output_text","text") and c.get("text"):
-                        parts.append(c["text"])
-            text="\n".join(parts)
-        usage = obj.get("usage", {}) or {}
-        env = refinery_envelope(i, prompt, text or "")
-        rec = {
-            **env,
-            "ok": True,
-            "latency_s": elapsed,
-            "azure_response_id": obj.get("id"),
-            "usage": usage,
-            "record_sha256": "",
-        }
-        rec["record_sha256"] = sha({k:v for k,v in rec.items() if k != "record_sha256"})
-        return rec
-    except Exception as e:
-        elapsed=time.perf_counter()-t0
-        rec={
-            "schema":"eden.refinery.azure.v1", "index":i, "ok":False,
-            "latency_s":elapsed, "error":type(e).__name__,
-            "input_sha256":hashlib.sha256(prompt.encode()).hexdigest(),
-            "record_sha256":""
-        }
-        rec["record_sha256"] = sha({k:v for k,v in rec.items() if k != "record_sha256"})
-        return rec
+    last_error = None
+    for attempt in range(5):
+        req = urllib.request.Request(
+            ENDPOINT + "/openai/v1/responses",
+            data=json.dumps(payload).encode(),
+            headers={"Content-Type":"application/json", "api-key":KEY},
+            method="POST",
+        )
+        t0 = time.perf_counter()
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                raw = r.read()
+            elapsed = time.perf_counter() - t0
+            obj = json.loads(raw)
+            text = obj.get("output_text")
+            if text is None:
+                parts=[]
+                for item in obj.get("output",[]):
+                    for c in item.get("content",[]):
+                        if c.get("type") in ("output_text","text") and c.get("text"):
+                            parts.append(c["text"])
+                text="\n".join(parts)
+            usage = obj.get("usage", {}) or {}
+            env = refinery_envelope(i, prompt, text or "")
+            rec = {**env, "ok": True, "latency_s": elapsed,
+                   "azure_response_id": obj.get("id"), "usage": usage,
+                   "record_sha256": ""}
+            rec["record_sha256"] = sha({k:v for k,v in rec.items() if k != "record_sha256"})
+            return rec
+        except urllib.error.HTTPError as e:
+            last_error = f"HTTPError:{e.code}"
+            if e.code not in (429, 500, 502, 503, 504):
+                break
+            time.sleep(min(2 ** attempt, 16))
+        except Exception as e:
+            last_error = type(e).__name__
+            time.sleep(min(2 ** attempt, 16))
+    rec={"schema":"eden.refinery.azure.v1", "index":i, "ok":False,
+         "error":last_error or "UnknownError",
+         "input_sha256":hashlib.sha256(prompt.encode()).hexdigest(),
+         "record_sha256":""}
+    rec["record_sha256"] = sha({k:v for k,v in rec.items() if k != "record_sha256"})
+    return rec
 
 def merkle_root(hex_leaves):
     if not hex_leaves:
@@ -112,7 +110,7 @@ def main():
     with jsonl.open("w", encoding="utf-8") as f:
         for r in records: f.write(json.dumps(r,sort_keys=True)+"\n")
     ok=[r for r in records if r["ok"]]
-    lat=[r["latency_s"] for r in ok]
+    lat=[r["latency_s"] for r in ok if "latency_s" in r]
     total_in=sum(int((r.get("usage") or {}).get("input_tokens",0) or 0) for r in ok)
     total_out=sum(int((r.get("usage") or {}).get("output_tokens",0) or 0) for r in ok)
     manifest={
