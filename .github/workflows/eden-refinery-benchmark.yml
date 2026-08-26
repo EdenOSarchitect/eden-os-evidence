@@ -1,0 +1,63 @@
+name: EDEN Refinery Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      requests:
+        description: Number of provider model requests
+        required: true
+        default: "1000"
+      concurrency:
+        description: Parallel workers
+        required: true
+        default: "16"
+  push:
+    paths:
+      - "eden-refinery/**"
+      - ".github/workflows/eden-refinery-benchmark.yml"
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    env:
+      AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+      AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+      AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
+      EDEN_REQUESTS: ${{ github.event.inputs.requests || '1000' }}
+      EDEN_CONCURRENCY: ${{ github.event.inputs.concurrency || '16' }}
+      EDEN_MAX_OUTPUT_TOKENS: "96"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify Azure OpenAI provider configuration is present
+        shell: bash
+        run: |
+          missing=0
+          for v in AZURE_OPENAI_ENDPOINT AZURE_OPENAI_API_KEY AZURE_OPENAI_DEPLOYMENT; do
+            if [ -z "${!v}" ]; then echo "Missing GitHub Actions secret: $v"; missing=1; fi
+          done
+          if [ "$missing" -ne 0 ]; then exit 78; fi
+
+      - name: Run measured provider workload through EDEN Refinery
+        run: python eden-refinery/eden_refinery_benchmark.py
+
+      - name: Verify manifest and hashes
+        if: always()
+        shell: bash
+        run: |
+          if [ -f eden-refinery/results/manifest.json ]; then
+            python -m json.tool eden-refinery/results/manifest.json
+            sha256sum eden-refinery/results/records.jsonl eden-refinery/results/manifest.json
+          fi
+
+      - name: Upload EDEN Refinery evidence bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eden-refinery-evidence-${{ github.run_id }}
+          path: eden-refinery/results/
+          if-no-files-found: warn
