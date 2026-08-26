@@ -41,9 +41,9 @@ Claim strength must not exceed evidence strength. Hashes and Merkle commitments 
 
 `sat-001/` contains deterministic selective-downlink simulations. These results are **SIMULATED / REPRODUCIBLE**, not flight evidence. Modelled energy/economic quantities remain modelled and unavailable real-world measurements remain null.
 
-### Azure refinery
+### EDEN Refinery
 
-`azure-refinery/` contains a verifiable Azure LLM refinery benchmark harness, retry/URL hardening, workflow support and a safe Termux bootstrap. Historical counterfactual cost examples must remain labelled as models until backed by captured provider workload/billing evidence.
+`eden-refinery/` contains the verifiable EDEN Refinery LLM benchmark harness, retry/URL hardening, workflow support and a safe Termux bootstrap. Azure OpenAI is currently supported as a provider configuration; it is not the name of the refinery itself. Historical counterfactual cost examples must remain labelled as models until backed by captured provider workload/billing evidence.
 
 ### Shadow Controller
 
