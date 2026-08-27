@@ -2,7 +2,7 @@
 
 Public, claim-controlled reproducibility artifacts for EDEN OS.
 
-**Current snapshot:** 2026-08-26  
+**Current snapshot:** 2026-08-27  
 **System status:** lab-stage / pre-revenue / not yet independently validated as a complete stack.
 
 ## What EDEN OS is exploring
@@ -14,6 +14,20 @@ Canonical conceptual flow:
 `SENSE -> DECOMPOSE -> MEASURE -> KEEP/VOID -> REGENERATE -> NAVIGATE (ChronoNav) -> VSURF -> TRANSMIT -> RECOMPOSE -> VERIFY`
 
 Refinery classes: `KEEP`, `STRUCTURE`, `DETAIL`, `RESIDUAL`, `VOID`.
+
+## Experimental interpretation
+
+EDEN treats experiments as evidence-producing procedures. An experiment does not become a failed experiment because its hypothesis is unsupported, a benchmark is neutral, a component regresses, or an expected effect is absent. Those are valid experimental outcomes.
+
+Research reports should therefore distinguish:
+
+- **positive outcome** — the tested hypothesis is supported under the recorded conditions;
+- **neutral outcome** — no material difference is established under the recorded conditions;
+- **negative / falsifying outcome** — the tested hypothesis is not supported, or a comparator performs better;
+- **inconclusive outcome** — instrumentation, sample size, environment, or evidence quality is insufficient for the intended inference;
+- **execution issue** — the intended procedure did not run as specified, such as absent credentials, missing hardware access, or an interrupted process.
+
+Negative, neutral and inconclusive outcomes are preserved rather than hidden. They refine the hypothesis and define the next experiment. An execution issue must not be promoted into a scientific result.
 
 ## Evidence classes
 
@@ -53,7 +67,7 @@ Repository history includes a local Termux Shadow Controller run. The intended e
 
 ### Manifold / neural ingress
 
-`neural-interface/` includes an authenticated decrypt gate, encrypted Manifold ingress documentation and ingestion-Marble handling. This establishes software/artifact state, not a claim of production Neuralink or other third-party deployment.
+`neural-interface/` now includes the merged MANIFOLD-AUTH-001 hardening: source/session/sequence/version metadata are bound into AES-256-GCM authenticated data, replay and out-of-order frames are rejected, and provenance-chain/replay-state ambiguity fails closed. The dedicated Manifold security regression job and SAT-001 reproducibility job passed on the PR head before merge. This establishes tested software behavior, not production Neuralink or other third-party deployment, device attestation, physiological interpretation, penetration-test assurance, or formal cryptographic verification.
 
 ### Marble / accountability
 
@@ -80,7 +94,7 @@ This repository does **not** currently establish:
 - independent third-party validation of the complete EDEN benchmark stack;
 - authenticity of Marble metadata fields that a verifier neither binds nor re-derives.
 
-## Validation direction
+## Next evidence steps
 
 Highest-value next steps are:
 
@@ -88,7 +102,8 @@ Highest-value next steps are:
 2. executed provider-side LLM A/B workloads with immutable token, latency, cost and workload evidence;
 3. Marble v2 verification that binds/re-derives evidence, provenance, kind and policy-relevant counts;
 4. independent third-party reproduction of the strongest results;
-5. a complete reproducible Shadow Controller baseline/treatment/counterfactual/Marble run.
+5. a complete reproducible Shadow Controller baseline/treatment/counterfactual/Marble run;
+6. physical RF observation and transport A/B experiments that keep RF observation, RF control and RF efficiency as separate claims.
 
 Record task quality, deadlines, wall time, worker-time, actual joules where applicable, thermal/frequency state, software/hardware identifiers and full provenance.
 
