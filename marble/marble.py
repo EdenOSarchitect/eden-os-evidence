@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import copy
 import hashlib
+import importlib.util
 import json
 import sys
 from datetime import datetime, timezone
@@ -24,8 +25,16 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Set
 
 try:
     from .assurance import verify_attestation_record, verify_resource_provenance, verify_timestamp_anchor
-except ImportError:  # direct script execution
-    from assurance import verify_attestation_record, verify_resource_provenance, verify_timestamp_anchor
+except ImportError:  # direct script execution or importlib loading outside package context
+    _assurance_path = Path(__file__).with_name("assurance.py")
+    _spec = importlib.util.spec_from_file_location("_eden_marble_assurance", _assurance_path)
+    if _spec is None or _spec.loader is None:
+        raise ImportError("unable to load Marble assurance module")
+    _assurance = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_assurance)
+    verify_attestation_record = _assurance.verify_attestation_record
+    verify_resource_provenance = _assurance.verify_resource_provenance
+    verify_timestamp_anchor = _assurance.verify_timestamp_anchor
 
 SCHEMA = "eden.marble.v2"
 DOMAIN = "EDEN-MARBLE-V2\x00"
@@ -159,8 +168,6 @@ def verify_integrity(m: Mapping[str, Any]) -> Dict[str, Any]:
     checks["resource_provenance_verified"] = rp["resource_provenance_verified"]
     checks["verified_resources"] = rp["verified_resources"]
     checks["unproven_resources"] = rp["unproven_resources"]
-    # Resource provenance is reported separately so old v2 Marbles remain valid;
-    # assurance profiles may require it before accepting resource claims.
 
     assurance = m.get("assurance", {})
     timestamp_anchor = assurance.get("timestamp_anchor") if isinstance(assurance, dict) else None
