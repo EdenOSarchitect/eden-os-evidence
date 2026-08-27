@@ -9,11 +9,13 @@
   "execution_status": "BLOCKED_BEFORE_AZURE_CALLS",
   "claim_class": "CONFIGURED_NOT_MEASURED",
   "azure_requests_executed": 0,
-  "reason": "Required GitHub Actions secrets were absent: AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_DEPLOYMENT",
+  "immediate_technical_reason": "Required GitHub Actions secrets were not configured in the workflow environment: AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_DEPLOYMENT",
+  "operational_reason": "The large paid Azure API benchmark was not funded at the time, so paid provider credentials were not configured for this 1000-request CI run.",
+  "azure_integration_context": "Azure provider execution had been established successfully in earlier work. This record concerns only the later 1000-request benchmark attempt.",
   "evidence": {
-    "preflight_step": "failure",
-    "measured_workload_step": "skipped",
+    "preflight_step": "stopped_before_paid_provider_calls",
+    "measured_workload_step": "not_run",
     "artifact_files_created": false
   },
-  "note": "This log records the attempted execution and must not be represented as a measured Azure workload. Re-run only after repository Actions secrets are configured."
+  "note": "This is an execution/budget constraint record, not a negative Azure or EDEN benchmark result. It must not be represented as evidence that Azure integration failed, nor as a measured 1000-request workload. Re-run when a funded API budget and provider credentials are available."
 }
