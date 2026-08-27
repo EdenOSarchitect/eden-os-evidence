@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""EDEN Core v0.1.
+"""EDEN Core v0.2.
 
 Persistent, dependency-light runtime for the EDEN evidence repository.
 The runtime exposes local health/telemetry endpoints, preserves experiment
 artifacts, and uses the existing Marble v2 reference implementation for mint
-and verification. Components that are documentation-only are reported as such
-rather than represented as implemented services.
+and verification. Components retain explicit evidence/truth boundaries.
 """
 from __future__ import annotations
 
@@ -19,9 +18,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Dict
 
+from chrysalis import evaluate as chrysalis_evaluate
 from marble import mint, verify_integrity
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 
 def utcnow() -> str:
@@ -39,7 +39,12 @@ class EdenCore:
         self.started_monotonic = time.monotonic()
         self.started_at = utcnow()
         self._lock = threading.Lock()
-        self._counters = {"marbles_minted": 0, "marbles_verified": 0, "marbles_void": 0}
+        self._counters = {
+            "marbles_minted": 0,
+            "marbles_verified": 0,
+            "marbles_void": 0,
+            "chrysalis_evaluations": 0,
+        }
 
     @property
     def state_path(self) -> Path:
@@ -55,7 +60,10 @@ class EdenCore:
                 "state": "DOCUMENTED" if (self.repo_root / "chrononav" / "README.md").exists() else "MISSING",
                 "implementation": "DOCUMENTATION_ONLY",
             },
-            "chrysalis": {"state": "NOT_WIRED", "implementation": "NO_CALLABLE_MODULE_DETECTED"},
+            "chrysalis": {
+                "state": "ACTIVE",
+                "implementation": "EXPERIMENTAL_NET_RESOURCE_EVALUATOR",
+            },
             "marble": {
                 "state": "ACTIVE",
                 "implementation": "marble.marble v2",
@@ -73,7 +81,7 @@ class EdenCore:
 
     def evidence_summary(self) -> Dict[str, Any]:
         candidates = []
-        for folder in ("marble", "energy", "validation-builds", "eden-refinery"):
+        for folder in ("marble", "energy", "validation-builds", "eden-refinery", "chrysalis"):
             root = self.repo_root / folder
             if root.exists():
                 candidates.extend(root.rglob("*.json"))
@@ -117,6 +125,7 @@ class EdenCore:
             "version": t["version"],
             "uptime_seconds": t["uptime_seconds"],
             "marble": t["components"]["marble"]["state"],
+            "chrysalis": t["components"]["chrysalis"]["state"],
             "evidence_store": t["components"]["evidence_store"]["state"],
         }
 
@@ -140,6 +149,13 @@ class EdenCore:
             self._counters["marbles_verified"] += 1
             if not result.get("integrity_verified"):
                 self._counters["marbles_void"] += 1
+        self.persist_state()
+        return result
+
+    def evaluate_chrysalis(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        result = chrysalis_evaluate(payload)
+        with self._lock:
+            self._counters["chrysalis_evaluations"] += 1
         self.persist_state()
         return result
 
@@ -176,7 +192,14 @@ class EdenCore:
                     self._write(200, {
                         "system": "EDEN CORE",
                         "version": VERSION,
-                        "endpoints": ["/health", "/telemetry", "/evidence", "/marbles/mint", "/marbles/verify"],
+                        "endpoints": [
+                            "/health",
+                            "/telemetry",
+                            "/evidence",
+                            "/chrysalis/evaluate",
+                            "/marbles/mint",
+                            "/marbles/verify",
+                        ],
                     })
                 else:
                     self._write(404, {"error": "not_found"})
@@ -188,6 +211,8 @@ class EdenCore:
                         self._write(200, core.mint_marble(payload))
                     elif self.path == "/marbles/verify":
                         self._write(200, core.verify_marble(payload))
+                    elif self.path == "/chrysalis/evaluate":
+                        self._write(200, core.evaluate_chrysalis(payload))
                     else:
                         self._write(404, {"error": "not_found"})
                 except Exception as exc:
