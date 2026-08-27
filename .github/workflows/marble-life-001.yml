@@ -2,7 +2,7 @@ name: marble-life-001
 
 on:
   push:
-    branches: [main, marble-life-001]
+    branches: [main, marble-life-001, marble-v2-assurance]
     paths:
       - 'marble/**'
       - '.github/workflows/marble-life-001.yml'
@@ -22,7 +22,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Compile reference implementation
-        run: python -m py_compile marble/marble.py
-      - name: Run Marble v2 regression suite
+      - name: Compile Marble v2 implementations
+        run: |
+          python -m py_compile marble/marble.py
+          python -m py_compile marble/assurance.py
+          python -m py_compile marble/independent_verify.py
+      - name: Run Marble v2 full regression suite
         run: python -m unittest discover -s marble/tests -p 'test_*.py' -v
+      - name: Verify primary and independent verifier agree on fixture
+        run: |
+          python marble/marble.py mint marble/fixtures/example-execution-core.json > /tmp/marble-v2.json
+          python marble/marble.py verify /tmp/marble-v2.json
+          python marble/independent_verify.py /tmp/marble-v2.json
