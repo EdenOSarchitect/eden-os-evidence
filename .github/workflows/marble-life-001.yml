@@ -28,6 +28,7 @@ jobs:
           python -m py_compile marble/assurance.py
           python -m py_compile marble/assure.py
           python -m py_compile marble/independent_verify.py
+          python -m py_compile marble/telemetry_e2e.py
       - name: Run Marble v2 full regression suite
         run: python -m unittest discover -s marble/tests -p 'test_*.py' -v
       - name: Verify primary and independent verifier agree on fixture
@@ -45,3 +46,22 @@ jobs:
           python marble/assure.py log-append /tmp/marble-v2.json /tmp/marble.log
           python marble/assure.py log-verify /tmp/marble.log
           python marble/assure.py bundle /tmp/marble-v2.json > /tmp/verifier-bundle.json
+      - name: Full telemetry to verified Marble E2E acceptance artifact
+        env:
+          EDEN_MARBLE_SIGNING_KEY: ci-e2e-test-key-not-production
+        run: |
+          mkdir -p artifacts/marble-e2e state
+          python marble/telemetry_e2e.py run \
+            marble/fixtures/full-telemetry-ci.json \
+            --output artifacts/marble-e2e/EDEN-MARBLE-E2E-001.json \
+            --log artifacts/marble-e2e/providence.jsonl \
+            --head state/provenance-head.json \
+            --key-id ci-e2e
+          python marble/telemetry_e2e.py verify artifacts/marble-e2e/EDEN-MARBLE-E2E-001.json
+          cp state/provenance-head.json artifacts/marble-e2e/provenance-head.json
+      - name: Publish verified Marble E2E artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EDEN-MARBLE-E2E-001
+          path: artifacts/marble-e2e/
+          if-no-files-found: error
