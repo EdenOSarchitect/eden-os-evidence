@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://edenrefinery.com/schema/marble-v2.schema.json",
+  "title": "EDEN Marble v2",
+  "type": "object",
+  "required": ["schema","marble_id","kind","subject","parents","actor","policy","input","output","resources","quality","evidence","truth","provenance","timestamp"],
+  "properties": {
+    "schema": {"const": "eden.marble.v2"},
+    "marble_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "kind": {"enum": ["OBSERVATION","DECISION","EXECUTION","ASSERTION","VERIFICATION","ACCOUNTING","REFUTATION"]},
+    "subject": {"type": "object"},
+    "parents": {"type": "array", "items": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, "uniqueItems": true},
+    "actor": {"type": "object"},
+    "policy": {
+      "type": "object",
+      "required": ["policy_id","policy_hash"],
+      "properties": {
+        "policy_id": {"type": "string", "minLength": 1},
+        "policy_hash": {"type": "string", "minLength": 1}
+      }
+    },
+    "input": {"type": "object"},
+    "output": {"type": "object"},
+    "resources": {"type": "object"},
+    "quality": {"type": "object"},
+    "evidence": {
+      "type": "object",
+      "required": ["class"],
+      "properties": {
+        "class": {"enum": ["IMPLEMENTED","MEASURED","SIMULATED","MODELLED","PROPOSED","INDEPENDENTLY_VALIDATED"]},
+        "instrumentation": {"type": "array", "items": {"type": "string"}},
+        "independent_reproduction": {"type": ["string","object"]}
+      }
+    },
+    "truth": {
+      "type": "object",
+      "required": ["claims","not_claimed"],
+      "properties": {
+        "claims": {"type": "array", "items": {"type": "string"}},
+        "not_claimed": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["sequence"],
+      "properties": {
+        "sequence": {"type": "integer", "minimum": 0},
+        "previous": {"type": ["string","null"]}
+      }
+    },
+    "timestamp": {"type": "string"},
+    "signature": {"type": ["object","string","null"]},
+    "verification": {"type": ["object","null"]}
+  },
+  "additionalProperties": true
+}
