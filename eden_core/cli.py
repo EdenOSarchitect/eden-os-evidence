@@ -53,11 +53,41 @@ def is_alive(pid: int | None) -> bool:
         return False
 
 
+def process_cmdline(pid: int | None) -> str:
+    if not pid:
+        return ""
+    try:
+        raw = Path(f"/proc/{pid}/cmdline").read_bytes()
+        return raw.replace(b"\x00", b" ").decode("utf-8", errors="replace").strip()
+    except Exception:
+        return ""
+
+
+def is_eden_core_process(pid: int | None) -> bool:
+    """Return True only when pid is a live EDEN Core serve process.
+
+    This prevents a stale PID file from ever targeting an unrelated Termux
+    process after Linux reuses the numeric PID.
+    """
+    if not is_alive(pid):
+        return False
+    cmdline = process_cmdline(pid)
+    return "eden_core.cli" in cmdline and "serve" in cmdline
+
+
+def clear_stale_pid() -> None:
+    pid = read_pid()
+    if pid and not is_eden_core_process(pid):
+        pid_path().unlink(missing_ok=True)
+
+
 def start(args) -> int:
     pid = read_pid()
-    if is_alive(pid):
+    if is_eden_core_process(pid):
         print(f"EDEN CORE already running pid={pid}")
         return 0
+    clear_stale_pid()
+
     log = open(log_path(), "ab", buffering=0)
     cmd = [sys.executable, "-m", "eden_core.cli", "serve", "--host", args.host, "--port", str(args.port)]
     proc = subprocess.Popen(
@@ -84,17 +114,38 @@ def start(args) -> int:
 
 def stop(args) -> int:
     pid = read_pid()
-    if not is_alive(pid):
+
+    if not pid:
         print("EDEN CORE is not running")
-        pid_path().unlink(missing_ok=True)
         return 0
+
+    if not is_alive(pid):
+        pid_path().unlink(missing_ok=True)
+        print("EDEN CORE is not running; stale PID file removed")
+        return 0
+
+    if not is_eden_core_process(pid):
+        cmdline = process_cmdline(pid) or "<unavailable>"
+        pid_path().unlink(missing_ok=True)
+        print(
+            "REFUSED: stored PID does not belong to EDEN Core. "
+            "No process was terminated."
+        )
+        print(f"PID={pid} cmdline={cmdline}")
+        return 2
+
     os.kill(pid, signal.SIGTERM)
     for _ in range(30):
         time.sleep(0.1)
         if not is_alive(pid):
             break
+
+    if is_alive(pid):
+        print(f"EDEN CORE pid={pid} did not stop after SIGTERM; process left running")
+        return 1
+
     pid_path().unlink(missing_ok=True)
-    print("EDEN CORE stopped")
+    print(f"EDEN CORE stopped pid={pid}")
     return 0
 
 
@@ -117,6 +168,9 @@ def status(args) -> int:
             print(f"{name:<16} {comp['state']}")
         return 0
     except Exception:
+        if pid and is_alive(pid) and not is_eden_core_process(pid):
+            print(f"EDEN CORE OFFLINE; stale/unrelated PID={pid} detected")
+            return 2
         print(f"EDEN CORE OFFLINE pid={pid if pid else '-'}")
         return 1
 
