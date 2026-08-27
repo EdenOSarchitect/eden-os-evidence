@@ -1,0 +1,7 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -e
+
+REPO_ROOT="${EDEN_REPO_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+cd "$REPO_ROOT"
+export EDEN_REPO_ROOT="$REPO_ROOT"
+exec python -m eden_core.cli "$@"
