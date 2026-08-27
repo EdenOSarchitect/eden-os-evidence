@@ -26,6 +26,7 @@ jobs:
         run: |
           python -m py_compile marble/marble.py
           python -m py_compile marble/assurance.py
+          python -m py_compile marble/assure.py
           python -m py_compile marble/independent_verify.py
       - name: Run Marble v2 full regression suite
         run: python -m unittest discover -s marble/tests -p 'test_*.py' -v
@@ -34,3 +35,13 @@ jobs:
           python marble/marble.py mint marble/fixtures/example-execution-core.json > /tmp/marble-v2.json
           python marble/marble.py verify /tmp/marble-v2.json
           python marble/independent_verify.py /tmp/marble-v2.json
+      - name: Exercise assurance CLI
+        env:
+          EDEN_MARBLE_SIGNING_KEY: ci-test-key-not-production
+        run: |
+          python marble/assure.py sign /tmp/marble-v2.json --key-id ci-test > /tmp/signature.json
+          python marble/assure.py verify-signature /tmp/marble-v2.json /tmp/signature.json --key-id ci-test
+          python marble/assure.py timestamp-anchor /tmp/marble-v2.json > /tmp/timestamp.json
+          python marble/assure.py log-append /tmp/marble-v2.json /tmp/marble.log
+          python marble/assure.py log-verify /tmp/marble.log
+          python marble/assure.py bundle /tmp/marble-v2.json > /tmp/verifier-bundle.json
