@@ -1,0 +1,55 @@
+{
+  "schema": "eden.marble.v2",
+  "kind": "EXECUTION",
+  "subject": {
+    "workload_id": "WL-MARBLE-EXAMPLE-001",
+    "experiment_id": "MARBLE-LIFE-001"
+  },
+  "parents": [],
+  "actor": {
+    "source": "EDEN-REFINERY",
+    "device_id": null,
+    "attestation": "UNATTESTED"
+  },
+  "policy": {
+    "policy_id": "REFINERY-KEEPVOID-001",
+    "policy_hash": "sha256:example-policy"
+  },
+  "input": {
+    "commitment": "sha256:example-input",
+    "bytes": 1048576
+  },
+  "output": {
+    "commitment": "sha256:example-output",
+    "bytes": 221184
+  },
+  "resources": {
+    "tokens_in": null,
+    "tokens_out": null,
+    "cpu_seconds": 4.821,
+    "gpu_seconds": null,
+    "memory_peak_bytes": 44302336,
+    "network_bytes": 221184,
+    "joules": null,
+    "wall_time_ms": 5187,
+    "cost": null
+  },
+  "quality": {
+    "metric": "task_score",
+    "value": 0.982,
+    "baseline": 0.987
+  },
+  "evidence": {
+    "class": "MEASURED",
+    "instrumentation": ["CLOCK_MONOTONIC", "PROC_RESOURCE"]
+  },
+  "truth": {
+    "claims": ["wall time measured", "network bytes measured"],
+    "not_claimed": ["electrical energy reduction", "independent validation"]
+  },
+  "provenance": {
+    "previous": null,
+    "sequence": 0
+  },
+  "timestamp": "2026-08-27T08:00:00Z"
+}
