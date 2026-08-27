@@ -25,7 +25,7 @@ Research reports should therefore distinguish:
 - **neutral outcome** — no material difference is established under the recorded conditions;
 - **negative / falsifying outcome** — the tested hypothesis is not supported, or a comparator performs better;
 - **inconclusive outcome** — instrumentation, sample size, environment, or evidence quality is insufficient for the intended inference;
-- **execution issue** — the intended procedure did not run as specified, such as absent credentials, missing hardware access, or an interrupted process.
+- **execution issue** — the intended procedure did not run as specified, such as unavailable budget/API spend, credentials, hardware access, or an interrupted process.
 
 Negative, neutral and inconclusive outcomes are preserved rather than hidden. They refine the hypothesis and define the next experiment. An execution issue must not be promoted into a scientific result.
 
@@ -55,9 +55,13 @@ Claim strength must not exceed evidence strength. Hashes and Merkle commitments 
 
 `sat-001/` contains deterministic selective-downlink simulations. These results are **SIMULATED / REPRODUCIBLE**, not flight evidence. Modelled energy/economic quantities remain modelled and unavailable real-world measurements remain null.
 
-### EDEN Refinery
+### EDEN Refinery / Azure provider
 
-`eden-refinery/` contains the verifiable EDEN Refinery LLM benchmark harness, retry/URL hardening, workflow support and a safe Termux bootstrap. Azure OpenAI is currently supported as a provider configuration; it is not the name of the refinery itself. Historical counterfactual cost examples must remain labelled as models until backed by captured provider workload/billing evidence.
+`eden-refinery/` contains the verifiable EDEN Refinery LLM benchmark harness, retry/URL hardening, workflow support and a safe Termux bootstrap. Azure OpenAI is supported as a provider configuration; it is not the name of the refinery itself.
+
+Azure provider integration/execution was successfully established in the initial provider work. A later 1,000-request paid Azure API benchmark was **not completed because a funded API budget was unavailable at the time**. The CI environment therefore did not receive the paid provider credentials/secrets and stopped before issuing those 1,000 calls. That later event is an execution/budget constraint, not evidence that Azure integration failed and not a negative EDEN result.
+
+Historical counterfactual cost examples remain models until backed by captured provider workload/billing evidence.
 
 ### Shadow Controller
 
@@ -67,7 +71,7 @@ Repository history includes a local Termux Shadow Controller run. The intended e
 
 ### Manifold / neural ingress
 
-`neural-interface/` now includes the merged MANIFOLD-AUTH-001 hardening: source/session/sequence/version metadata are bound into AES-256-GCM authenticated data, replay and out-of-order frames are rejected, and provenance-chain/replay-state ambiguity fails closed. The dedicated Manifold security regression job and SAT-001 reproducibility job passed on the PR head before merge. This establishes tested software behavior, not production Neuralink or other third-party deployment, device attestation, physiological interpretation, penetration-test assurance, or formal cryptographic verification.
+`neural-interface/` now includes the merged MANIFOLD-AUTH-001 hardening: source/session/sequence/version metadata are bound into AES-256-GCM authenticated data, replay and out-of-order frames are rejected, and provenance-chain/replay-state ambiguity fails closed. The dedicated Manifold security regression job and SAT-001 reproducibility job passed on the PR head and the post-merge `main` evidence-ci run also completed successfully. This establishes tested software behavior, not production Neuralink or other third-party deployment, device attestation, physiological interpretation, penetration-test assurance, or formal cryptographic verification.
 
 ### Marble / accountability
 
@@ -79,7 +83,7 @@ Marbles are provenance/accountability records. A current v1 trust boundary is do
 
 ### Full current-state snapshot
 
-See [`docs/CURRENT_STATE_2026-08-26.md`](docs/CURRENT_STATE_2026-08-26.md) for the consolidated architecture/evidence status.
+See [`docs/CURRENT_STATE_2026-08-27.md`](docs/CURRENT_STATE_2026-08-27.md) for the consolidated architecture/evidence status.
 
 ## Truth boundaries
 
@@ -99,7 +103,7 @@ This repository does **not** currently establish:
 Highest-value next steps are:
 
 1. power-instrumented ChronoNav replication against maximum-compute and strong adaptive baselines on multiple devices;
-2. executed provider-side LLM A/B workloads with immutable token, latency, cost and workload evidence;
+2. funded provider-side Azure A/B workloads with immutable token, latency, quality, cost and workload evidence;
 3. Marble v2 verification that binds/re-derives evidence, provenance, kind and policy-relevant counts;
 4. independent third-party reproduction of the strongest results;
 5. a complete reproducible Shadow Controller baseline/treatment/counterfactual/Marble run;
@@ -107,4 +111,4 @@ Highest-value next steps are:
 
 Record task quality, deadlines, wall time, worker-time, actual joules where applicable, thermal/frequency state, software/hardware identifiers and full provenance.
 
-CI is intended to keep deterministic artifacts reproducible and to prevent simulated/modelled results from being silently reclassified as measured physical evidence.
+CI is active and has successfully reproduced SAT-001 and run the MANIFOLD-AUTH-001 security regression suite. It is intended to keep deterministic artifacts reproducible and prevent simulated/modelled results from being silently reclassified as measured physical evidence.
