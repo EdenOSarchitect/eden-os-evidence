@@ -5,10 +5,12 @@ on:
     branches: [main, marble-life-001, marble-v2-assurance]
     paths:
       - 'marble/**'
+      - 'rf-establishment/**'
       - '.github/workflows/marble-life-001.yml'
   pull_request:
     paths:
       - 'marble/**'
+      - 'rf-establishment/**'
       - '.github/workflows/marble-life-001.yml'
 
 permissions:
@@ -29,6 +31,7 @@ jobs:
           python -m py_compile marble/assure.py
           python -m py_compile marble/independent_verify.py
           python -m py_compile marble/telemetry_e2e.py
+          python -m py_compile marble/physical_telemetry.py
       - name: Run Marble v2 full regression suite
         run: python -m unittest discover -s marble/tests -p 'test_*.py' -v
       - name: Verify primary and independent verifier agree on fixture
@@ -59,6 +62,30 @@ jobs:
             --key-id ci-e2e
           python marble/telemetry_e2e.py verify artifacts/marble-e2e/EDEN-MARBLE-E2E-001.json
           cp state/provenance-head.json artifacts/marble-e2e/provenance-head.json
+      - name: Physical-shaped telemetry through identical E2E chain
+        env:
+          EDEN_MARBLE_SIGNING_KEY: ci-physical-shape-test-key-not-production
+        run: |
+          mkdir -p artifacts/marble-e2e/physical-ci physical-state
+          python marble/physical_telemetry.py \
+            marble/fixtures/physical-rf-ci.json \
+            --output artifacts/marble-e2e/physical-ci/telemetry.json
+          python marble/telemetry_e2e.py run \
+            artifacts/marble-e2e/physical-ci/telemetry.json \
+            --output artifacts/marble-e2e/physical-ci/EDEN-MARBLE-PHYSICAL-SHAPE-CI.json \
+            --log artifacts/marble-e2e/physical-ci/providence.jsonl \
+            --head physical-state/provenance-head.json \
+            --key-id ci-physical-shape
+          python marble/telemetry_e2e.py verify artifacts/marble-e2e/physical-ci/EDEN-MARBLE-PHYSICAL-SHAPE-CI.json
+          cp physical-state/provenance-head.json artifacts/marble-e2e/physical-ci/provenance-head.json
+          python - <<'PY'
+          import json
+          p='artifacts/marble-e2e/physical-ci/EDEN-MARBLE-PHYSICAL-SHAPE-CI.json'
+          a=json.load(open(p))
+          assert a['marble']['evidence']['class']=='SIMULATED'
+          assert a['e2e_verified'] is True
+          assert 'rssi_dbm' in a['marble']['evidence']['observation_provenance']
+          PY
       - name: Publish verified Marble E2E artifact
         uses: actions/upload-artifact@v4
         with:
