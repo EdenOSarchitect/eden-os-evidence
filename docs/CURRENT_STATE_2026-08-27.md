@@ -6,7 +6,7 @@ This document is a claim-controlled snapshot of the public EDEN evidence reposit
 
 EDEN treats an experiment as an evidence-producing procedure. A result may support a hypothesis, show no material difference, contradict a hypothesis, expose a boundary condition, or be inconclusive. Those are experimental outcomes, not failed experiments.
 
-An **execution issue** is different: the intended procedure did not run as specified because of conditions such as unavailable credentials, unavailable hardware, interrupted execution, or invalid configuration. Execution issues do not count as scientific results.
+An **execution issue** is different: the intended procedure did not run as specified because of conditions such as unavailable budget, credentials, hardware access, interrupted execution, or invalid configuration. Execution issues do not count as scientific results.
 
 ## Canonical evidence classes
 
@@ -41,12 +41,15 @@ Boundary: authenticated sender-supplied source metadata does not independently e
 
 Azure integration/execution was successfully established in the initial provider work.
 
-A later GitHub Actions attempt to run a larger 1,000-request benchmark did not execute the measured request phase because the CI environment did not contain the required Azure credentials. That later event is an **execution issue**, not evidence that Azure integration failed.
+A later GitHub Actions attempt was prepared for a larger 1,000-request paid Azure API benchmark. That measured request phase was not run because there was no funded API budget available at the time. As a consequence, the paid provider credentials/secrets were not configured in that workflow environment, and preflight stopped before Azure calls were made.
+
+This is an **execution/budget constraint**, not a negative Azure benchmark result and not evidence that Azure integration failed.
 
 Current classification:
 
-- Azure provider integration: **IMPLEMENTED / previously executed**.
-- large 1,000-request provider benchmark: **NOT COMPLETED**.
+- Azure provider integration: **IMPLEMENTED / previously executed successfully**.
+- later 1,000-request paid provider benchmark: **NOT COMPLETED because budget/API spend was unavailable**.
+- requests executed in that later CI attempt: **0**.
 - large-scale Azure resource/cost superiority attributable to EDEN: **NOT YET ESTABLISHED**.
 - counterfactual Shadow Controller percentages remain counterfactual unless backed by captured provider-side workload/billing evidence.
 
@@ -131,7 +134,7 @@ The main branch post-merge run for MANIFOLD-AUTH-001 completed successfully.
 ## Next evidence steps
 
 1. Direct battery/power-instrumented ChronoNav comparison against a strong adaptive scheduler.
-2. Provider-side Azure A/B workload with immutable task, token, latency, quality and billing evidence.
+2. Funded provider-side Azure A/B workload with immutable task, token, latency, quality and billing evidence.
 3. Execute and preserve EDEN-RF-EST-001 physical handset observations.
 4. Move from RF observation to controlled transport A/B tests with bytes, latency, quality, retransmission and joules.
 5. Continue Marble verification hardening so policy-relevant evidence/provenance fields are bound or re-derived.
