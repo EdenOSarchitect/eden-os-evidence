@@ -76,3 +76,20 @@ jobs:
             echo 'Unexpected repository-local EDEN PID file remains after CI'
             exit 1
           fi
+
+  delivery-bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile delivery tooling
+        run: python -m py_compile delivery/run_all.py delivery/build_delivery.py
+      - name: Run consolidated non-physical suite and package
+        run: python delivery/run_all.py --package
+      - name: Verify delivery archive and checksum were produced
+        run: |
+          test -n "$(find delivery/out -maxdepth 1 -name 'EDEN-DELIVERY-*.tar.gz' -print -quit)"
+          test -n "$(find delivery/out -maxdepth 1 -name 'EDEN-DELIVERY-*.tar.gz.sha256' -print -quit)"
