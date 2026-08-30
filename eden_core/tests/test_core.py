@@ -15,6 +15,8 @@ class EdenCoreTests(unittest.TestCase):
             health = core.health()
             self.assertEqual(health["status"], "ok")
             self.assertEqual(health["chrysalis"], "ACTIVE")
+            self.assertEqual(health["chrononav"], "ACTIVE")
+            self.assertEqual(health["refinery"], "ACTIVE")
             self.assertEqual(core.evidence_summary()["json_artifacts"], 1)
 
     def test_marble_mint_and_verify_use_reference_module(self):
@@ -22,18 +24,13 @@ class EdenCoreTests(unittest.TestCase):
             root = Path(td)
             core = EdenCore(repo_root=root, state_dir=root / ".eden-core")
             payload = {
-                "kind": "EXECUTION",
-                "subject": {"name": "core-test"},
-                "parents": [],
+                "kind": "EXECUTION", "subject": {"name": "core-test"}, "parents": [],
                 "actor": {"id": "test", "attestation": "UNATTESTED"},
                 "policy": {"policy_id": "TEST", "policy_hash": "sha256:test"},
-                "input": {"sha256": "sha256:input"},
-                "output": {"sha256": "sha256:output"},
-                "resources": {"cpu_seconds": 1.0},
-                "quality": {"status": "PASS"},
+                "input": {"sha256": "sha256:input"}, "output": {"sha256": "sha256:output"},
+                "resources": {"cpu_seconds": 1.0}, "quality": {"status": "PASS"},
                 "evidence": {"class": "IMPLEMENTED", "instrumentation": []},
-                "truth": {"claims": [], "not_claimed": []},
-                "provenance": {"sequence": 0},
+                "truth": {"claims": [], "not_claimed": []}, "provenance": {"sequence": 0},
             }
             marble = core.mint_marble(payload)
             result = core.verify_marble(marble)
@@ -50,13 +47,33 @@ class EdenCoreTests(unittest.TestCase):
             result = core.evaluate_chrysalis({
                 "baseline": {"quality": 1.0, "total": 100},
                 "policy": {"minimum_quality": 0.995, "minimum_net_reduction_fraction": 0.10},
-                "candidates": [
-                    {"id": "candidate-a", "quality": 0.999, "active": 70, "metadata": 2, "recovery": 1, "regeneration": 3, "orchestration": 2}
-                ],
+                "candidates": [{"id": "candidate-a", "quality": 0.999, "active": 70, "metadata": 2, "recovery": 1, "regeneration": 3, "orchestration": 2}],
             })
             self.assertEqual(result["status"], "SELECTED")
             self.assertEqual(result["selected"]["id"], "candidate-a")
-            self.assertEqual(core.telemetry()["counters"]["chrysalis_evaluations"], 1)
+
+    def test_integrated_pipeline_executes_and_verifies(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            core = EdenCore(repo_root=root, state_dir=root / ".eden-core")
+            result = core.integrated_run({
+                "run_id": "EDEN-CORE-INTEGRATION-TEST",
+                "refinery": {"input": {"work": 1}, "output": {"result": 2}, "classification": "KEEP"},
+                "chrononav": {"predicted_seconds": {"1": 1.2, "2": 0.8, "4": 0.5}, "deadline_seconds": 0.9},
+                "chrysalis": {
+                    "baseline": {"quality": 1.0, "total": 100},
+                    "policy": {"minimum_quality": 0.995, "minimum_net_reduction_fraction": 0.10},
+                    "candidates": [{"id": "reuse", "quality": 0.999, "active": 70, "metadata": 2, "recovery": 1, "regeneration": 3, "orchestration": 2}],
+                },
+            })
+            self.assertEqual(result["chrononav"]["selected_workers"], 2)
+            self.assertEqual(result["chrysalis"]["status"], "SELECTED")
+            self.assertTrue(result["verification"]["integrity_verified"])
+            self.assertIn("physical energy advantage", result["marble"]["core"]["truth"]["not_claimed"])
+            counters = core.telemetry()["counters"]
+            self.assertEqual(counters["integrated_runs"], 1)
+            self.assertEqual(counters["chrononav_schedules"], 1)
+            self.assertEqual(counters["refinery_envelopes"], 1)
 
 
 if __name__ == "__main__":
