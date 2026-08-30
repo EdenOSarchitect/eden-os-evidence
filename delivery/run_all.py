@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -18,9 +17,9 @@ def utcnow():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def run(name, cmd, required=True, env=None):
+def run(name, cmd, required=True):
     print(f"\n=== {name} ===")
-    proc = subprocess.run(cmd, cwd=ROOT, text=True, env=env)
+    proc = subprocess.run(cmd, cwd=ROOT, text=True)
     return {
         "name": name,
         "command": " ".join(cmd),
@@ -28,10 +27,6 @@ def run(name, cmd, required=True, env=None):
         "returncode": proc.returncode,
         "status": "PASS" if proc.returncode == 0 else "NOT_COMPLETED",
     }
-
-
-def exists(path):
-    return (ROOT / path).exists()
 
 
 def main():
@@ -50,36 +45,66 @@ def main():
          "chrysalis.tests.test_chrysalis", "-v"],
     ))
 
-    # Historical experiments remain preserved as immutable evidence artifacts.
-    # Only known deterministic/reproducible runners are invoked automatically.
-    optional = [
-        ("SAT-001 reproducibility", "sat-001", [sys.executable, "sat-001/reproduce.py"]),
-    ]
-    for name, path, cmd in optional:
-        if exists(path) and exists(cmd[1]) if len(cmd) > 1 else False:
-            records.append(run(name, cmd, required=False))
-        else:
-            records.append({"name": name, "required": False, "status": "PRESERVED_NOT_RERUN", "reason": "runner not present at expected path"})
+    sat_runner = ROOT / "sat-001" / "run_simulation.py"
+    if sat_runner.exists():
+        records.append(run("SAT-001 deterministic reproducibility", [sys.executable, str(sat_runner.relative_to(ROOT))], required=False))
+    else:
+        records.append({
+            "name": "SAT-001 deterministic reproducibility",
+            "required": False,
+            "status": "PRESERVED_NOT_RERUN",
+            "reason": "runner not present",
+        })
 
     if args.handset:
-        probe = subprocess.run(["termux-battery-status"], cwd=ROOT, text=True, capture_output=True)
-        if probe.returncode != 0:
-            records.append({"name": "Physical handset suite", "required": False, "status": "NOT_COMPLETED", "reason": "termux-battery-status unavailable"})
+        try:
+            probe = subprocess.run(
+                ["termux-battery-status"], cwd=ROOT, text=True,
+                capture_output=True, timeout=5,
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            probe = None
+
+        if probe is None or probe.returncode != 0:
+            records.append({
+                "name": "Physical handset suite",
+                "required": False,
+                "status": "NOT_COMPLETED",
+                "reason": "termux-battery-status unavailable",
+            })
         else:
             try:
                 battery = json.loads(probe.stdout)
             except Exception:
                 battery = {}
             if battery.get("status") != "DISCHARGING":
-                records.append({"name": "Physical handset suite", "required": False, "status": "NOT_COMPLETED", "reason": "handset must be unplugged / DISCHARGING"})
+                records.append({
+                    "name": "Physical handset suite",
+                    "required": False,
+                    "status": "NOT_COMPLETED",
+                    "reason": "handset must be unplugged / DISCHARGING",
+                })
             else:
-                subprocess.run(["bash", "bin/eden", "restart"], cwd=ROOT)
-                for exp in ("eden-core-ab-001", "eden-core-ab-002"):
-                    script = ROOT / "experiments" / exp / "run_termux.py"
-                    if script.exists():
-                        records.append(run(exp.upper(), [sys.executable, str(script.relative_to(ROOT))], required=False))
-                    else:
-                        records.append({"name": exp.upper(), "required": False, "status": "PRESERVED_NOT_RERUN", "reason": "runner missing"})
+                launch = subprocess.run(["bash", "bin/eden", "restart"], cwd=ROOT)
+                if launch.returncode != 0:
+                    records.append({
+                        "name": "EDEN Core handset launch",
+                        "required": False,
+                        "status": "NOT_COMPLETED",
+                        "reason": "Core restart returned non-zero",
+                    })
+                else:
+                    for exp in ("eden-core-ab-001", "eden-core-ab-002"):
+                        script = ROOT / "experiments" / exp / "run_termux.py"
+                        if script.exists():
+                            records.append(run(exp.upper(), [sys.executable, str(script.relative_to(ROOT))], required=False))
+                        else:
+                            records.append({
+                                "name": exp.upper(),
+                                "required": False,
+                                "status": "PRESERVED_NOT_RERUN",
+                                "reason": "runner missing",
+                            })
 
     required_ok = all(r.get("status") == "PASS" for r in records if r.get("required"))
     report = {
