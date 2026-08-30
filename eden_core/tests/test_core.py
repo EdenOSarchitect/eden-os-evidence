@@ -69,7 +69,7 @@ class EdenCoreTests(unittest.TestCase):
             self.assertEqual(result["chrononav"]["selected_workers"], 2)
             self.assertEqual(result["chrysalis"]["status"], "SELECTED")
             self.assertTrue(result["verification"]["integrity_verified"])
-            self.assertIn("physical energy advantage", result["marble"]["core"]["truth"]["not_claimed"])
+            self.assertIn("physical energy advantage", result["marble"]["truth"]["not_claimed"])
             counters = core.telemetry()["counters"]
             self.assertEqual(counters["integrated_runs"], 1)
             self.assertEqual(counters["chrononav_schedules"], 1)
