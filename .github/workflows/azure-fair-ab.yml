@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'experiments/azure-fair-ab-001/**'
+      - 'experiments/eden-cpu-avoidance-001/**'
       - 'eden_core/**'
       - 'chrononav/**'
       - 'chrysalis/**'
@@ -12,6 +13,7 @@ on:
   pull_request:
     paths:
       - 'experiments/azure-fair-ab-001/**'
+      - 'experiments/eden-cpu-avoidance-001/**'
       - 'eden_core/**'
       - 'chrononav/**'
       - 'chrysalis/**'
@@ -35,6 +37,7 @@ jobs:
         run: |
           python -m py_compile experiments/azure-fair-ab-001/azure_fair_ab.py
           python -m py_compile experiments/azure-fair-ab-001/test_azure_fair_ab.py
+          python -m py_compile experiments/eden-cpu-avoidance-001/cpu_avoidance.py
 
       - name: Run regression tests
         run: python -m unittest experiments/azure-fair-ab-001/test_azure_fair_ab.py
@@ -67,3 +70,46 @@ jobs:
           assert 'Azure energy consumption' in m['truth_boundary']['not_claimed']
           print(json.dumps(m['comparison'], indent=2, sort_keys=True))
           PY
+
+      - name: Run EDEN CPU avoidance sweep
+        run: |
+          rm -rf /tmp/eden-cpu-avoidance-ci
+          python experiments/eden-cpu-avoidance-001/cpu_avoidance.py \
+            --requests 100 \
+            --iterations 20000 \
+            --repeats 3 \
+            --reuse 0 0.10 0.25 0.50 0.75 0.90 0.99 \
+            --output /tmp/eden-cpu-avoidance-ci/EDEN-CPU-AVOIDANCE-001.json
+
+      - name: Enforce CPU avoidance evidence boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('/tmp/eden-cpu-avoidance-ci/EDEN-CPU-AVOIDANCE-001.json')
+          m = json.loads(p.read_text())
+          assert m['run_id'] == 'EDEN-CPU-AVOIDANCE-001'
+          assert m['evidence_class'] == 'MEASURED_CI_PROCESS_CPU'
+          assert all(r['output_equality_all_trials'] for r in m['results'])
+          assert all(r['eden_full_executions'] <= r['control_full_executions'] for r in m['results'])
+          assert m['results'][-1]['reuse_fraction_realized'] >= 0.98
+          assert m['results'][-1]['avoided_full_executions'] >= 98
+          assert 'Azure internal CPU or GPU utilization' in m['truth_boundary']['not_claimed']
+          print('Observed break-even reuse:', m['observed_break_even_reuse_fraction_in_this_sweep'])
+          for r in m['results']:
+              print(
+                  f"reuse={r['reuse_fraction_realized']:.2%} "
+                  f"cpu_reduction={r['median_cpu_reduction_fraction']:.2%} "
+                  f"wall_reduction={r['median_wall_reduction_fraction']:.2%} "
+                  f"avoided={r['avoided_full_executions']}"
+              )
+          PY
+
+      - name: Upload Azure and CPU evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: eden-azure-fair-ab-and-cpu-evidence
+          path: |
+            /tmp/azure-fair-ab-ci/
+            /tmp/eden-cpu-avoidance-ci/
+          if-no-files-found: error
