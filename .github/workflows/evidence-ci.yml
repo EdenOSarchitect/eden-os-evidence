@@ -24,7 +24,6 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-
           data = json.loads(Path('sat-001/results/SIM_002.json').read_text())
           assert data['classification'] == 'SIMULATED_SYNTHETIC_NOT_FLIGHT_EVIDENCE'
           boundaries = data['claim_boundaries']
@@ -65,9 +64,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Compile integrated runtime
-        run: python -m py_compile eden_core/core.py eden_core/cli.py eden_core/tests/test_core.py eden_core/tests/test_launcher_integration.py chrysalis/chrysalis.py
-      - name: Run Core and Chrysalis unit tests
-        run: python -m unittest eden_core.tests.test_core chrysalis.tests.test_chrysalis -v
+        run: python -m py_compile eden_core/core.py eden_core/cli.py eden_core/tests/test_core.py eden_core/tests/test_launcher_integration.py chrononav/scheduler.py chrononav/tests/test_scheduler.py chrysalis/chrysalis.py
+      - name: Run Core, ChronoNav and Chrysalis unit tests
+        run: python -m unittest eden_core.tests.test_core chrononav.tests.test_scheduler chrysalis.tests.test_chrysalis -v
       - name: Run launcher lifecycle and HTTP integration gate
         run: python -m unittest eden_core.tests.test_launcher_integration -v
       - name: Assert runtime was cleaned up
