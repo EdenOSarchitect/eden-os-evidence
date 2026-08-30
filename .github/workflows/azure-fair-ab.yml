@@ -1,0 +1,69 @@
+name: azure-fair-ab
+
+on:
+  push:
+    paths:
+      - 'experiments/azure-fair-ab-001/**'
+      - 'eden_core/**'
+      - 'chrononav/**'
+      - 'chrysalis/**'
+      - 'marble/**'
+      - '.github/workflows/azure-fair-ab.yml'
+  pull_request:
+    paths:
+      - 'experiments/azure-fair-ab-001/**'
+      - 'eden_core/**'
+      - 'chrononav/**'
+      - 'chrysalis/**'
+      - 'marble/**'
+      - '.github/workflows/azure-fair-ab.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  azure-fair-ab-mock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Compile fair A/B harness
+        run: |
+          python -m py_compile experiments/azure-fair-ab-001/azure_fair_ab.py
+          python -m py_compile experiments/azure-fair-ab-001/test_azure_fair_ab.py
+
+      - name: Run regression tests
+        run: python -m unittest experiments/azure-fair-ab-001/test_azure_fair_ab.py
+
+      - name: Run no-cost mock A/B
+        run: |
+          rm -rf /tmp/azure-fair-ab-ci
+          python experiments/azure-fair-ab-001/azure_fair_ab.py \
+            --provider mock \
+            --requests 20 \
+            --unique-tasks 5 \
+            --seed 260830 \
+            --output-dir /tmp/azure-fair-ab-ci
+
+      - name: Enforce mock truth boundary and parity
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('/tmp/azure-fair-ab-ci/manifest.json')
+          m = json.loads(p.read_text())
+          assert m['provider_class'] == 'SIMULATED_MOCK_PROVIDER'
+          assert m['service_boundary'] == 'IDENTICAL_LOCAL_HTTP_POST_/evaluate'
+          c = m['summaries']['control']
+          e = m['summaries']['eden']
+          assert c['provider_calls'] == e['provider_calls'] == 5
+          assert c['cache_hits'] == e['cache_hits'] == 15
+          assert c['quality_pass_rate'] == e['quality_pass_rate'] == 1.0
+          assert m['comparison']['provider_call_delta'] == 0
+          assert 'Azure energy consumption' in m['truth_boundary']['not_claimed']
+          print(json.dumps(m['comparison'], indent=2, sort_keys=True))
+          PY
