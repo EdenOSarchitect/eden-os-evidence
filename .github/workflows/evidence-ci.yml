@@ -55,3 +55,25 @@ jobs:
         run: python -m py_compile neural-interface/manifold_encrypt.py neural-interface/manifold_gate.py neural-interface/open_connector.py neural-interface/test_manifold_auth.py
       - name: Run MANIFOLD-AUTH-001 tamper/replay regression suite
         run: python neural-interface/test_manifold_auth.py
+
+  eden-core-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile integrated runtime
+        run: python -m py_compile eden_core/core.py eden_core/cli.py eden_core/tests/test_core.py eden_core/tests/test_launcher_integration.py chrysalis/chrysalis.py
+      - name: Run Core and Chrysalis unit tests
+        run: python -m unittest eden_core.tests.test_core chrysalis.tests.test_chrysalis -v
+      - name: Run launcher lifecycle and HTTP integration gate
+        run: python -m unittest eden_core.tests.test_launcher_integration -v
+      - name: Assert runtime was cleaned up
+        if: always()
+        run: |
+          if [ -f .eden-core/eden-core.pid ]; then
+            echo 'Unexpected repository-local EDEN PID file remains after CI'
+            exit 1
+          fi
