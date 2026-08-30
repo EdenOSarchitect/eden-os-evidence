@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import importlib.util
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,8 +9,9 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 MODULE_PATH = HERE / "azure_fair_ab.py"
 spec = importlib.util.spec_from_file_location("azure_fair_ab", MODULE_PATH)
-mod = importlib.util.module_from_spec(spec)
 assert spec and spec.loader
+mod = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = mod
 spec.loader.exec_module(mod)
 
 
