@@ -1,0 +1,53 @@
+{
+  "schema": "eden.azure.capacity_001.result.v1",
+  "experiment": "EDEN-AZURE-CAPACITY-001",
+  "evidence_class": "MEASURED",
+  "environment": "AZURE_VM",
+  "run_id": "86ca374d-e3d0-4a28-a6e3-75c285d804bc",
+  "equivalent_outputs_per_arm": 20000,
+  "iterations_per_output": 30000,
+  "reuse_target_fraction": 0.5,
+  "observed_reuse_fraction": 0.5,
+  "full_executions_avoided": 10000,
+  "control": {
+    "cpu_seconds": 857.843536,
+    "wall_seconds": 876.861933,
+    "outputs_per_vm_hour": 82110.99,
+    "outputs_per_cpu_second": 23.3143,
+    "window_start": "2026-08-31T10:41:10.817760+00:00",
+    "window_end": "2026-08-31T11:02:03.982158+00:00"
+  },
+  "eden": {
+    "cpu_seconds": 419.083863,
+    "wall_seconds": 419.854056,
+    "outputs_per_vm_hour": 171488.16,
+    "outputs_per_cpu_second": 47.7231,
+    "window_start": "2026-08-31T11:02:04.031101+00:00",
+    "window_end": "2026-08-31T11:09:03.885290+00:00"
+  },
+  "results": {
+    "cpu_reduction_percent": 51.15,
+    "wall_reduction_percent": 52.12,
+    "capacity_gain_percent": 108.85,
+    "cpu_efficiency_gain_percent": 104.69,
+    "output_equivalence": "PASS"
+  },
+  "request_commitment": "sha256:fae4f8255f464c18a830799898fc52f6d95d3ec2287d805c0caf17e4652a1379",
+  "report_commitment": "sha256:582bd92b5fb19c83b85065d86c938ccd741d70151c18653fae942dceac29e0e0",
+  "truth_boundary": {
+    "measured": [
+      "host process CPU time for this Azure VM workload",
+      "wall time for this Azure VM workload",
+      "workload output capacity",
+      "full executions avoided under exact reuse",
+      "tested output equivalence"
+    ],
+    "not_claimed": [
+      "Azure datacentre energy reduction",
+      "Azure billing savings",
+      "general Azure workload efficiency",
+      "independent validation"
+    ]
+  },
+  "source": "User-supplied console output from the Azure VM run. Numeric values preserved from the run output."
+}
