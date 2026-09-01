@@ -29,7 +29,20 @@
       "properties": {
         "class": {"enum": ["IMPLEMENTED","MEASURED","SIMULATED","MODELLED","PROPOSED","INDEPENDENTLY_VALIDATED"]},
         "instrumentation": {"type": "array", "items": {"type": "string"}},
-        "independent_reproduction": {"type": ["string","object"]}
+        "independent_reproduction": {"type": ["string","object"]},
+        "resource_provenance": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["instrument","measurement_ref"],
+            "properties": {
+              "instrument": {"type": "string", "minLength": 1},
+              "measurement_ref": {"type": "string", "minLength": 1},
+              "unit": {"type": ["string","null"]},
+              "method": {"type": ["string","null"]}
+            }
+          }
+        }
       }
     },
     "truth": {
@@ -49,7 +62,40 @@
       }
     },
     "timestamp": {"type": "string"},
-    "signature": {"type": ["object","string","null"]},
+    "signature": {
+      "type": ["object","string","null"],
+      "description": "Mutable assurance envelope excluded from Marble event identity"
+    },
+    "assurance": {
+      "type": ["object","null"],
+      "description": "Optional appendable assurance data excluded from Marble event identity",
+      "properties": {
+        "timestamp_anchor": {
+          "type": "object",
+          "required": ["authority","observed_at","token"],
+          "properties": {
+            "authority": {"type": "string"},
+            "observed_at": {"type": "string"},
+            "external_ref": {"type": ["string","null"]},
+            "token": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+          }
+        },
+        "attestation": {
+          "type": "object",
+          "required": ["subject","credential_hash","verifier","verified"],
+          "properties": {
+            "subject": {"type": "string"},
+            "credential_hash": {"type": "string"},
+            "verifier": {"type": "string"},
+            "evidence_ref": {"type": ["string","null"]},
+            "hardware_backed": {"type": "boolean"},
+            "verified": {"type": "boolean"}
+          }
+        },
+        "transparency": {"type": ["object","null"]},
+        "external_reproductions": {"type": "array", "items": {"type": ["string","object"]}}
+      }
+    },
     "verification": {"type": ["object","null"]}
   },
   "additionalProperties": true

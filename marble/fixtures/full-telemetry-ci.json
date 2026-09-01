@@ -1,0 +1,74 @@
+{
+  "telemetry_id": "EDEN-MARBLE-E2E-CI-001",
+  "source": "CI_SYNTHETIC_TELEMETRY",
+  "timestamp": "2026-08-27T08:15:00Z",
+  "evidence_class": "SIMULATED",
+  "workload": {
+    "workload_id": "WL-MARBLE-E2E-001",
+    "experiment_id": "MARBLE-LIFE-001-E2E",
+    "device_id": "ci-runner",
+    "input_bytes": 4096,
+    "output_bytes": 1024,
+    "parents": [],
+    "attestation": "UNATTESTED"
+  },
+  "measurements": {
+    "tokens_in": 1200,
+    "tokens_out": 300,
+    "cpu_seconds": 1.75,
+    "gpu_seconds": null,
+    "memory_peak_bytes": 67108864,
+    "network_bytes": 8192,
+    "storage_bytes": 2048,
+    "joules": 14.2,
+    "wall_time_ms": 1840,
+    "cost": 0.0042,
+    "deadline_met": 1
+  },
+  "instrumentation": {
+    "tokens_in": {"instrument": "CI_TOKEN_COUNTER", "unit": "tokens", "method": "deterministic fixture"},
+    "tokens_out": {"instrument": "CI_TOKEN_COUNTER", "unit": "tokens", "method": "deterministic fixture"},
+    "cpu_seconds": {"instrument": "CI_PROCESS_TIMER", "unit": "s", "method": "deterministic fixture"},
+    "memory_peak_bytes": {"instrument": "CI_MEMORY_COUNTER", "unit": "bytes", "method": "deterministic fixture"},
+    "network_bytes": {"instrument": "CI_BYTE_COUNTER", "unit": "bytes", "method": "deterministic fixture"},
+    "storage_bytes": {"instrument": "CI_STORAGE_COUNTER", "unit": "bytes", "method": "deterministic fixture"},
+    "joules": {"instrument": "CI_ENERGY_FIXTURE", "unit": "J", "method": "synthetic test value"},
+    "wall_time_ms": {"instrument": "CI_MONOTONIC_TIMER", "unit": "ms", "method": "deterministic fixture"},
+    "cost": {"instrument": "CI_COST_FIXTURE", "unit": "currency_units", "method": "synthetic test value"},
+    "deadline_met": {"instrument": "CI_DEADLINE_EVALUATOR", "unit": "boolean_int", "method": "deterministic fixture"}
+  },
+  "quality": {
+    "metric": "task_score",
+    "value": 0.98,
+    "baseline": 0.97
+  },
+  "policy": {
+    "policy_id": "MARBLE-E2E-CI-POLICY-001",
+    "policy_hash": "sha256:76bdf0af159c8f38838c460f69c18ea02c50fe01f1abc20cc72e595043af1f7b"
+  },
+  "crv_allocation": {
+    "tokens_in": 2000,
+    "tokens_out": 500,
+    "cpu_seconds": 3.0,
+    "memory_peak_bytes": 134217728,
+    "network_bytes": 16384,
+    "storage_bytes": 4096,
+    "joules": 30.0,
+    "wall_time_ms": 3000,
+    "cost": 0.01,
+    "deadline_met": 1
+  },
+  "claims": [
+    "CI fixture traversed the complete telemetry-to-Marble software pipeline"
+  ],
+  "not_claimed": [
+    "physical energy measurement",
+    "provider billing measurement",
+    "hardware identity",
+    "independent third-party validation"
+  ],
+  "provenance": {
+    "sequence": 1,
+    "previous": null
+  }
+}

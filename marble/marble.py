@@ -5,17 +5,36 @@ MARBLE-LIFE-001
 Dependency-light canonical minting, verification, lineage and evidence-boundary
 checks. Cryptographic integrity proves integrity of the committed record; it does
 not independently prove the truth of scientific claims recorded inside it.
+
+Marble v2 is intended to be long-lived. Optional ``assurance`` data is excluded
+from the scientific event identity so signatures, timestamp/log anchors, device
+attestation evidence and external reproduction records can accrue without
+renaming the underlying event.
 """
 from __future__ import annotations
 
 import argparse
 import copy
 import hashlib
+import importlib.util
 import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Set
+
+try:
+    from .assurance import verify_attestation_record, verify_resource_provenance, verify_timestamp_anchor
+except ImportError:  # direct script execution or importlib loading outside package context
+    _assurance_path = Path(__file__).with_name("assurance.py")
+    _spec = importlib.util.spec_from_file_location("_eden_marble_assurance", _assurance_path)
+    if _spec is None or _spec.loader is None:
+        raise ImportError("unable to load Marble assurance module")
+    _assurance = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_assurance)
+    verify_attestation_record = _assurance.verify_attestation_record
+    verify_resource_provenance = _assurance.verify_resource_provenance
+    verify_timestamp_anchor = _assurance.verify_timestamp_anchor
 
 SCHEMA = "eden.marble.v2"
 DOMAIN = "EDEN-MARBLE-V2\x00"
@@ -30,9 +49,8 @@ def canonical_bytes(value: Any) -> bytes:
 
 def committed_core(marble: Mapping[str, Any]) -> Dict[str, Any]:
     core = copy.deepcopy(dict(marble))
-    core.pop("marble_id", None)
-    core.pop("signature", None)
-    core.pop("verification", None)
+    for mutable_envelope in ("marble_id", "signature", "verification", "assurance"):
+        core.pop(mutable_envelope, None)
     return core
 
 
@@ -84,6 +102,8 @@ def validate_structure(m: Mapping[str, Any], require_id: bool = True) -> None:
         raise ValueError("truth claims must be arrays")
     if m["kind"] == "REFUTATION" and not m["subject"].get("target_marble_id"):
         raise ValueError("refutation requires subject.target_marble_id")
+    if "assurance" in m and not isinstance(m["assurance"], dict):
+        raise ValueError("assurance must be an object")
 
 
 def verify_integrity(m: Mapping[str, Any]) -> Dict[str, Any]:
@@ -94,6 +114,8 @@ def verify_integrity(m: Mapping[str, Any]) -> Dict[str, Any]:
         "provenance_verified": False,
         "policy_verified": False,
         "evidence_verified": False,
+        "resource_provenance_verified": False,
+        "timestamp_anchor_verified": False,
         "attestation": "UNATTESTED",
         "independent_replication": "NOT_PERFORMED",
         "errors": [],
@@ -127,9 +149,6 @@ def verify_integrity(m: Mapping[str, Any]) -> Dict[str, Any]:
     evidence = m.get("evidence", {})
     ev_class = evidence.get("class")
     instrumentation = evidence.get("instrumentation", [])
-    # MEASURED is not accepted as verified merely because the label is committed.
-    # It needs named instrumentation; independent validation additionally needs
-    # an external reproduction reference.
     if ev_class == "MEASURED":
         if isinstance(instrumentation, list) and len(instrumentation) > 0:
             checks["evidence_verified"] = True
@@ -145,9 +164,27 @@ def verify_integrity(m: Mapping[str, Any]) -> Dict[str, Any]:
     else:
         checks["evidence_verified"] = True
 
-    att = m.get("actor", {}).get("attestation")
-    if isinstance(att, dict) and att.get("verified") is True and att.get("credential_hash"):
-        checks["attestation"] = "RECORDED_VERIFIED"
+    rp = verify_resource_provenance(m.get("resources", {}), evidence)
+    checks["resource_provenance_verified"] = rp["resource_provenance_verified"]
+    checks["verified_resources"] = rp["verified_resources"]
+    checks["unproven_resources"] = rp["unproven_resources"]
+
+    assurance = m.get("assurance", {})
+    timestamp_anchor = assurance.get("timestamp_anchor") if isinstance(assurance, dict) else None
+    if isinstance(timestamp_anchor, dict):
+        tv = verify_timestamp_anchor(str(m["marble_id"]), timestamp_anchor)
+        checks["timestamp_anchor_verified"] = tv["timestamp_anchor_verified"]
+        checks["timestamp_trust"] = tv["trust"]
+        checks["errors"].extend(tv["errors"])
+
+    att = assurance.get("attestation") if isinstance(assurance, dict) else None
+    if att is None:
+        att = m.get("actor", {}).get("attestation")
+    if isinstance(att, dict):
+        av = verify_attestation_record(att)
+        checks["attestation"] = av["assurance"]
+        if not av["attestation_verified"]:
+            checks["errors"].extend(av["errors"])
     elif isinstance(att, str):
         checks["attestation"] = att
     return checks
@@ -196,6 +233,24 @@ def verify_crv(allocation: Mapping[str, Any], observed: Mapping[str, Any]) -> Di
     return {"within_delegation": not violations, "violations": violations}
 
 
+def assurance_profile(m: Mapping[str, Any], verification: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
+    """Summarise v2 assurance without collapsing distinct guarantees into VALID."""
+    v = dict(verification or verify_integrity(m))
+    return {
+        "profile": "eden.marble.v2.assurance",
+        "marble_id": m.get("marble_id"),
+        "event_integrity": "VERIFIED" if v.get("integrity_verified") else "UNVERIFIED",
+        "lineage_state": "LOCAL_SEQUENCE_VERIFIED" if v.get("provenance_verified") else "UNVERIFIED",
+        "policy_state": "COMMITMENT_RECORDED" if v.get("policy_verified") else "UNVERIFIED",
+        "evidence_state": "VERIFIED_TO_RECORDED_CLASS" if v.get("evidence_verified") else "UNVERIFIED",
+        "resource_measurement_state": "PROVENANCE_COMPLETE" if v.get("resource_provenance_verified") else "PARTIAL_OR_UNPROVEN",
+        "timestamp_state": v.get("timestamp_trust", "NOT_ANCHORED"),
+        "attestation_state": v.get("attestation", "UNATTESTED"),
+        "independent_replication": v.get("independent_replication", "NOT_PERFORMED"),
+        "scientific_truth_implied": False,
+    }
+
+
 def load_json(path: str) -> Any:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
@@ -207,6 +262,8 @@ def main() -> int:
     pm.add_argument("input")
     pv = sub.add_parser("verify")
     pv.add_argument("input")
+    pa = sub.add_parser("assurance")
+    pa.add_argument("input")
     pl = sub.add_parser("lineage")
     pl.add_argument("inputs", nargs="+")
     args = p.parse_args()
@@ -218,6 +275,10 @@ def main() -> int:
         result = verify_integrity(load_json(args.input))
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0 if result["integrity_verified"] else 1
+    if args.cmd == "assurance":
+        m = load_json(args.input)
+        print(json.dumps(assurance_profile(m), indent=2, sort_keys=True))
+        return 0
     result = verify_lineage(load_json(x) for x in args.inputs)
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result["lineage_verified"] else 1
