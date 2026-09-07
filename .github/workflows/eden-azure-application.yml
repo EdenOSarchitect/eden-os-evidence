@@ -41,7 +41,10 @@ jobs:
           files = list(Path('/tmp/eden-app').glob('*.json'))
           assert len(files) == 1
           report = json.loads(files[0].read_text())
-          assert report['evidence_class'] == 'MEASURED_LOCAL_HTTP_HARNESS'
+          expected_class = ('MEASURED_AZURE_VM_LOCAL_HTTP_HARNESS'
+                            if report['host']['azure_hardware_signal']
+                            else 'MEASURED_LOCAL_HTTP_HARNESS')
+          assert report['evidence_class'] == expected_class
           assert report['comparison']['output_equivalence']
           assert report['comparison']['execution_accounting_valid']
           assert report['arms']['EDEN']['verification_failures'] == 0
