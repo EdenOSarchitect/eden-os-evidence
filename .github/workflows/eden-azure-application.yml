@@ -1,0 +1,59 @@
+name: eden-azure-application
+
+on:
+  push:
+    paths:
+      - 'experiments/eden-azure-application-001/**'
+      - '.github/workflows/eden-azure-application.yml'
+  pull_request:
+    paths:
+      - 'experiments/eden-azure-application-001/**'
+      - '.github/workflows/eden-azure-application.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile
+        run: |
+          python -m py_compile experiments/eden-azure-application-001/azure_application_001.py
+          python -m py_compile experiments/eden-azure-application-001/test_azure_application_001.py
+      - name: Unit and concurrency tests
+        run: python -m unittest experiments/eden-azure-application-001/test_azure_application_001.py
+      - name: Isolated-process smoke benchmark
+        run: |
+          python experiments/eden-azure-application-001/azure_application_001.py \
+            --requests 60 --iterations 500 --reuse 0.50 --concurrency 4 \
+            --seed 260907 --environment CI_LOCAL --output-dir /tmp/eden-app
+      - name: Enforce evidence and truth boundaries
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          files = list(Path('/tmp/eden-app').glob('*.json'))
+          assert len(files) == 1
+          report = json.loads(files[0].read_text())
+          assert report['evidence_class'] == 'MEASURED_LOCAL_HTTP_HARNESS'
+          assert report['comparison']['output_equivalence']
+          assert report['comparison']['execution_accounting_valid']
+          assert report['arms']['EDEN']['verification_failures'] == 0
+          assert report['arms']['EDEN']['verification_attempts'] == 60
+          assert report['arms']['EDEN']['verification_hit_attempts'] == report['arms']['EDEN']['reuse_hits']
+          assert report['arms']['CONTROL']['application_payload_bytes'] == report['arms']['EDEN']['application_payload_bytes']
+          assert 'actual Azure invoice savings' in report['truth_boundary']['not_claimed']
+          assert 'statistical significance or confidence intervals from one run per arm' in report['truth_boundary']['not_claimed']
+          print(json.dumps(report['comparison'], indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eden-azure-application-smoke-evidence
+          path: /tmp/eden-app/
+          if-no-files-found: error
