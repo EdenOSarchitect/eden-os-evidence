@@ -20,7 +20,8 @@ POLICY = {
     "policy_id": "EDEN-EXACT-VERIFIED-REUSE-V1",
     "policy_version": "1.0.0",
     "match": "exact canonical workload descriptor SHA-256",
-    "verification": "input, output, policy, provenance and record commitment on every hit",
+    "verification": "input, output, policy, provenance and record commitment on every reuse hit",
+    "miss_handling": "newly computed outputs are committed at creation and are not redundantly reverified",
 }
 PROVENANCE = {
     "experiment": EXP, "producer": "deterministic_work",
@@ -126,19 +127,27 @@ class State:
             stored = cached
             with self.lock: self.hits += 1
         if self.mode == "EDEN":
-            # Per-thread CPU avoids double-counting unrelated concurrent
-            # request threads inside an individual verification interval.
-            started = time.thread_time_ns()
-            valid = verify_record(stored, seed, self.iterations)
-            elapsed = time.thread_time_ns() - started
-            with self.lock:
-                self.verify_attempts += 1
-                self.verify_hit_attempts += int(not owner)
-                self.verify_cpu_ns += elapsed
-                self.verify_passes += int(valid)
-                self.verify_failures += int(not valid)
-            if not valid: raise RuntimeError("verified-reuse record failed integrity verification")
-            value = int(stored["value"])
+            if owner:
+                # The result was just computed inside this trusted arm and its
+                # complete record was committed by make_record(). Re-hashing it
+                # before the first return adds CPU but cannot validate reuse.
+                value = int(stored["value"])
+            else:
+                # Every reused result crosses the assurance boundary and must
+                # re-bind input, output, policy, provenance and the full record.
+                # Per-thread CPU avoids double-counting concurrent request work.
+                started = time.thread_time_ns()
+                valid = verify_record(stored, seed, self.iterations)
+                elapsed = time.thread_time_ns() - started
+                with self.lock:
+                    self.verify_attempts += 1
+                    self.verify_hit_attempts += 1
+                    self.verify_cpu_ns += elapsed
+                    self.verify_passes += int(valid)
+                    self.verify_failures += int(not valid)
+                if not valid:
+                    raise RuntimeError("verified-reuse record failed integrity verification")
+                value = int(stored["value"])
         else:
             value = int(stored)
         return output(seed, value)
