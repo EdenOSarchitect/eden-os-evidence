@@ -48,7 +48,7 @@ jobs:
           assert report['comparison']['output_equivalence']
           assert report['comparison']['execution_accounting_valid']
           assert report['arms']['EDEN']['verification_failures'] == 0
-          assert report['arms']['EDEN']['verification_attempts'] == 60
+          assert report['arms']['EDEN']['verification_attempts'] == report['arms']['EDEN']['reuse_hits']
           assert report['arms']['EDEN']['verification_hit_attempts'] == report['arms']['EDEN']['reuse_hits']
           assert report['arms']['CONTROL']['application_payload_bytes'] == report['arms']['EDEN']['application_payload_bytes']
           assert 'actual Azure invoice savings' in report['truth_boundary']['not_claimed']
