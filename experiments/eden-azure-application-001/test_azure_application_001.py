@@ -34,14 +34,23 @@ class ApplicationTests(unittest.TestCase):
             self.assertEqual(arms[mode]["full_executions"], 20)
             self.assertEqual(arms[mode]["reuse_hits"], 20)
             self.assertEqual(arms[mode]["executions_avoided_vs_control"], 20)
-        self.assertEqual(arms["EDEN"]["verification_attempts"], 40)
+        self.assertEqual(arms["EDEN"]["verification_attempts"], 20)
         self.assertEqual(arms["EDEN"]["verification_hit_attempts"], 20)
-        self.assertEqual(arms["EDEN"]["verification_passes"], 40)
+        self.assertEqual(arms["EDEN"]["verification_passes"], 20)
         self.assertEqual(arms["EDEN"]["verification_failures"], 0)
         self.assertEqual(
             arms["CONTROL"]["application_payload_bytes"],
             arms["EDEN"]["application_payload_bytes"],
         )
+
+    def test_only_reuse_hits_pay_verification_cpu(self):
+        stream = app.request_stream(100, .10, 17)
+        eden = app.run_arm("EDEN", stream, 50, 4)
+        self.assertEqual(eden["reuse_hits"], 10)
+        self.assertEqual(eden["verification_attempts"], 10)
+        self.assertEqual(eden["verification_hit_attempts"], 10)
+        self.assertEqual(eden["verification_passes"], 10)
+        self.assertEqual(eden["verification_failures"], 0)
 
     def test_explicit_order_validation(self):
         self.assertEqual(app.parse_order("EDEN,CONTROL,CACHE", 1),
