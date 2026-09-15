@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="description" content="EDEN OS — verification and resource-intelligence layer. Don't recompute it. Verify it."/>
+  <title>EDEN OS — Don't recompute it. Verify it.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #06080d;
+      --bg-elevated: #0c111a;
+      --bg-card: rgba(16, 22, 34, 0.72);
+      --border: rgba(125, 183, 255, 0.12);
+      --border-strong: rgba(125, 183, 255, 0.28);
+      --text: #eef2f7;
+      --muted: #8b96a8;
+      --accent: #6eb6ff;
+      --accent-2: #5eead4;
+      --accent-glow: rgba(110, 182, 255, 0.35);
+      --warn: #fbbf24;
+      --radius: 16px;
+      --font: "DM Sans", system-ui, sans-serif;
+      --mono: "JetBrains Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font);
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .bg-grid {
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(125, 183, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(125, 183, 255, 0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black, transparent);
+      pointer-events: none;
+    }
+    .bg-glow {
+      position: fixed; width: 60vw; height: 50vh; top: -10%; left: 20%;
+      background: radial-gradient(ellipse, var(--accent-glow), transparent 70%);
+      filter: blur(60px); z-index: 0; pointer-events: none;
+      animation: pulse-glow 8s ease-in-out infinite alternate;
+    }
+    @keyframes pulse-glow {
+      from { opacity: 0.45; transform: translate(0, 0) scale(1); }
+      to { opacity: 0.75; transform: translate(4%, 6%) scale(1.08); }
+    }
+    .wrap {
+      position: relative; z-index: 1;
+      max-width: 920px; margin: 0 auto;
+      padding: 1.25rem 1.25rem 4rem;
+    }
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.75rem 0 2rem; gap: 1rem;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 0.65rem;
+      text-decoration: none; color: var(--text);
+      font-weight: 600; letter-spacing: -0.02em;
+    }
+    .logo-mark {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: grid; place-items: center;
+      font-family: var(--mono); font-size: 0.7rem; font-weight: 500;
+      color: #041018; box-shadow: 0 0 24px var(--accent-glow);
+    }
+    .nav-links { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .nav-links a {
+      color: var(--muted); text-decoration: none; font-size: 0.9rem;
+      padding: 0.4rem 0.75rem; border-radius: 999px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .nav-links a:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    header.hero { padding: 2.5rem 0 3rem; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      font-size: 0.78rem; font-family: var(--mono); color: var(--accent-2);
+      background: rgba(94, 234, 212, 0.08);
+      border: 1px solid rgba(94, 234, 212, 0.2);
+      padding: 0.3rem 0.75rem; border-radius: 999px; margin-bottom: 1.25rem;
+    }
+    .badge::before {
+      content: ""; width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent-2); box-shadow: 0 0 8px var(--accent-2);
+      animation: blink 2s ease-in-out infinite;
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+    h1 {
+      font-size: clamp(2.1rem, 5vw, 3.15rem); font-weight: 700;
+      letter-spacing: -0.035em; line-height: 1.12; margin-bottom: 1rem;
+    }
+    h1 .gradient {
+      background: linear-gradient(120deg, var(--accent) 0%, var(--accent-2) 55%, #a78bfa 100%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .tagline {
+      font-size: 1.15rem; color: var(--muted);
+      max-width: 36rem; margin-bottom: 1.75rem;
+    }
+    .tagline strong { color: var(--text); font-weight: 600; }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 2rem; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.7rem 1.2rem; border-radius: 999px;
+      font-weight: 600; font-size: 0.92rem; text-decoration: none;
+      border: 1px solid transparent;
+      transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #4f9cf0);
+      color: #041018; box-shadow: 0 4px 24px var(--accent-glow);
+    }
+    .btn-primary:hover { box-shadow: 0 6px 32px var(--accent-glow); }
+    .btn-ghost {
+      background: transparent; color: var(--text); border-color: var(--border-strong);
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.04); }
+    .meta-line { font-size: 0.88rem; color: var(--muted); }
+    .meta-line code {
+      font-family: var(--mono); font-size: 0.82rem; color: var(--accent);
+    }
+    section { margin: 2.5rem 0; }
+    section h2 {
+      font-size: 1.15rem; font-weight: 600; letter-spacing: -0.02em;
+      margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;
+    }
+    section h2 .num {
+      font-family: var(--mono); font-size: 0.75rem; color: var(--accent);
+      background: rgba(110, 182, 255, 0.1);
+      padding: 0.2rem 0.45rem; border-radius: 6px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem 1.35rem;
+      backdrop-filter: blur(12px);
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+    .card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.45rem; }
+    .card p { font-size: 0.88rem; color: var(--muted); }
+    .card .stat {
+      font-family: var(--mono); font-size: 1.65rem; font-weight: 500;
+      color: var(--accent); letter-spacing: -0.03em; margin: 0.35rem 0 0.25rem;
+    }
+    .card .stat-label {
+      font-size: 0.78rem; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .flow {
+      display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;
+      font-family: var(--mono); font-size: 0.72rem; color: var(--muted);
+    }
+    .flow span {
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      padding: 0.35rem 0.55rem; border-radius: 8px; color: var(--text);
+    }
+    .flow .arrow { border: none; background: none; color: var(--accent); padding: 0; }
+    .boundary {
+      border: 1px solid rgba(251, 191, 36, 0.25);
+      background: rgba(251, 191, 36, 0.06);
+      border-radius: var(--radius); padding: 1.15rem 1.35rem;
+      font-size: 0.9rem; color: #e8d5a3;
+    }
+    .boundary strong { color: var(--warn); font-weight: 600; }
+    footer {
+      margin-top: 3.5rem; padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.85rem; color: var(--muted);
+      display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem;
+      justify-content: space-between;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    @media (max-width: 560px) {
+      nav { flex-direction: column; align-items: flex-start; }
+      .cta-row { flex-direction: column; }
+      .btn { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-glow" aria-hidden="true"></div>
+  <div class="wrap">
+    <nav>
+      <a class="logo" href="#">
+        <span class="logo-mark">EO</span>
+        EDEN OS
+      </a>
+      <div class="nav-links">
+        <a href="#what">What it is</a>
+        <a href="#pilot">Pilot</a>
+        <a href="#flow">Flow</a>
+        <a href="#boundary">Boundaries</a>
+      </div>
+    </nav>
+
+    <header class="hero">
+      <div class="badge">Reference · Interop-Protocol-v1</div>
+      <h1>
+        Don't recompute it.<br/>
+        <span class="gradient">Verify it.</span>
+      </h1>
+      <p class="tagline">
+        EDEN is a <strong>verification and resource-intelligence layer</strong>
+        that finds reusable work, skips unnecessary recomputation, and seals
+        cryptographic evidence of what ran, what was reused, and what was avoided.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#pilot">See pilot scoring</a>
+        <a class="btn btn-ghost" href="#flow">Canonical flow</a>
+      </div>
+      <p class="meta-line">
+        Declared architect: <strong style="color:var(--text)">Daniel Noel Clarke</strong>
+        · Warwick, UK
+        · <code>v1.0.0-reference</code>
+      </p>
+    </header>
+
+    <section id="what">
+      <h2><span class="num">01</span> What EDEN does</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Verified reuse</h3>
+          <p>Exact request commitments. Hits only after binding checks—not a silent cache.</p>
+        </div>
+        <div class="card">
+          <h3>Keep / void</h3>
+          <p>Classifies what stays useful versus what can be dropped without breaking reconstruction.</p>
+        </div>
+        <div class="card">
+          <h3>Provenance</h3>
+          <p>Marbles and receipts bind input, output, policy, and measurements for audit.</p>
+        </div>
+        <div class="card">
+          <h3>Sits underneath</h3>
+          <p>Designed to run beneath models, apps, and pipelines—without replacing them.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="pilot">
+      <h2><span class="num">02</span> Pilot scoring <span style="font-weight:400;color:var(--muted);font-size:0.85rem">(candidates only)</span></h2>
+      <div class="grid">
+        <div class="card">
+          <div class="stat-label">Text / code</div>
+          <div class="stat">~15%</div>
+          <p>Candidate void rate in pilot scoring—not a universal guarantee.</p>
+        </div>
+        <div class="card">
+          <div class="stat-label">General data</div>
+          <div class="stat">~45%</div>
+          <p>Candidate void rate for mixed general payloads in the same pilot frame.</p>
+        </div>
+        <div class="card">
+          <div class="stat-label">RSU</div>
+          <div class="stat" style="font-size:1.25rem">kept TiB</div>
+          <p>Capacity receipt unit—not currency, not a legal instrument.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="flow">
+      <h2><span class="num">03</span> Canonical flow</h2>
+      <div class="card">
+        <div class="flow">
+          <span>SENSE</span><span class="arrow">→</span>
+          <span>DECOMPOSE</span><span class="arrow">→</span>
+          <span>MEASURE</span><span class="arrow">→</span>
+          <span>KEEP/VOID</span><span class="arrow">→</span>
+          <span>REGENERATE</span><span class="arrow">→</span>
+          <span>NAVIGATE</span><span class="arrow">→</span>
+          <span>VERIFY</span>
+        </div>
+        <p style="margin-top:1rem;font-size:0.88rem;color:var(--muted)">
+          Measurement layer: candidate inefficiency, high-priority working set, sealed provenance, capacity receipts.
+        </p>
+      </div>
+    </section>
+
+    <section id="boundary">
+      <h2><span class="num">04</span> Truth boundary</h2>
+      <div class="boundary">
+        <strong>Not claimed here:</strong> global deployment, verified multi-trillion savings,
+        or independent legal attestation. Those remain pending. This site describes the
+        reference architecture and pilot framing only.
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="num">05</span> Reproduce</h2>
+      <div class="card">
+        <p style="color:var(--muted);font-size:0.92rem">
+          Release hashes · technical brief · micro-benchmark · conformance suite —
+          see public repository release
+          <code style="font-family:var(--mono);color:var(--accent)">v1.0.0-reference</code>.
+        </p>
+      </div>
+    </section>
+
+    <footer>
+      <span>EDEN OS · measurement &amp; provenance reference</span>
+      <span>Independent attestation &amp; third-party savings studies: pending</span>
+    </footer>
+  </div>
+</body>
+</html>
