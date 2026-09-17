@@ -1,8 +1,26 @@
 # EDEN OS Evidence
 
+**Turn repeated work into verified reuse.** EDEN OS explores how to recognize reusable computation, check the result against a recorded input/output commitment, and produce evidence of the work avoided. This repository contains experimental code and its limits; it is not a production performance guarantee.
+
+```text
+request -> identify reusable work -> compute or verify a recorded result -> report evidence
+```
+
+**Start here:** [Run the three-arm local demo](docs/QUICKSTART.md) · [Read the evidence map](docs/EVIDENCE_MAP.md) · [Explore pilot experiments](experiments/) · [Contact EDEN](https://edenrefinery.com/)
+
+```bash
+python3 experiments/quickstart.py
+```
+
+The demo compares full recomputation, conventional exact caching, and a small verified-reuse example on the same synthetic requests. It measures local process CPU, wall time, throughput, latency and avoided full executions; it makes no cloud billing or energy claim. A conventional cache may be faster than verified reuse. [See exactly what it does](docs/QUICKSTART.md).
+
+**For collaborators:** [How to contribute or reproduce a result](CONTRIBUTING.md). The Azure application and structured-reuse experiments are currently in [open pull requests](https://github.com/EdenOSarchitect/eden-os-evidence/pulls); their results are not presented here as merged evidence.
+
+---
+
 Public, claim-controlled reproducibility artifacts for EDEN OS.
 
-**Current snapshot:** 2026-08-27  
+**Detailed architecture snapshot below:** 2026-08-27 (historical; consult the current branch and open PRs for later changes)  
 **System status:** lab-stage / pre-revenue / not yet independently validated as a complete stack.
 
 ## What EDEN OS is exploring
