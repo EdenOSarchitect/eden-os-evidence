@@ -6,6 +6,29 @@ on:
   pull_request:
 
 jobs:
+  structured-reuse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify section reuse, corruption detection and repeated trials
+        run: python3 -m unittest discover -s experiments/eden-azure-structured-reuse-001 -p 'test_*.py' -v
+      - name: Smoke benchmark and validate report
+        run: |
+          python3 experiments/eden-azure-structured-reuse-001/azure_structured_reuse_001.py --requests 12 --rounds 5 --trials 2 --environment CI_SMOKE
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          paths = list(Path('experiments/eden-azure-structured-reuse-001/results').glob('*.json'))
+          assert len(paths) == 1
+          report = json.loads(paths[0].read_text())
+          assert report['primary_comparator'] == 'COMPONENT_CACHE'
+          assert len(report['trials']) == 2
+          assert all(t['output_equivalence'] and t['verified_section_hits'] > 0 for t in report['trials'])
+          PY
+
   sat001-reproducibility:
     runs-on: ubuntu-latest
     steps:
