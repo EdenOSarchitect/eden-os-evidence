@@ -1,0 +1,125 @@
+name: full-llm-verification
+
+on:
+  push:
+    branches: [integrate-all-core-components-2026-08-30]
+  workflow_dispatch:
+
+jobs:
+  full-software-verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install crypto dependency
+        run: python -m pip install --disable-pip-version-check cryptography
+      - name: Compile all verification surfaces
+        run: |
+          python -m py_compile \
+            eden_core/core.py eden_core/cli.py \
+            chrononav/scheduler.py chrysalis/chrysalis.py \
+            marble/marble.py marble/tests/test_marble_v2.py \
+            neural-interface/manifold_encrypt.py neural-interface/manifold_gate.py \
+            neural-interface/open_connector.py neural-interface/test_manifold_auth.py \
+            sat-001/run_simulation.py eden-refinery/eden_refinery_benchmark.py
+      - name: Core + ChronoNav + Chrysalis integration tests
+        run: python -m unittest eden_core.tests.test_core eden_core.tests.test_launcher_integration chrononav.tests.test_scheduler chrysalis.tests.test_chrysalis -v
+      - name: Marble v2 integrity, truth-label and lineage tests
+        run: python marble/tests/test_marble_v2.py -v
+      - name: Manifold authentication tamper and replay tests
+        run: python neural-interface/test_manifold_auth.py
+      - name: SAT-001 deterministic reproducibility and truth-boundary check
+        run: |
+          python sat-001/run_simulation.py > /tmp/sat001-output.json
+          diff -u sat-001/results/SIM_002.json sat-001/RESULTS.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('sat-001/results/SIM_002.json').read_text())
+          assert d['classification']=='SIMULATED_SYNTHETIC_NOT_FLIGHT_EVIDENCE'
+          b=d['claim_boundaries']
+          assert b['cloudsen12_measured'] is False
+          assert b['real_satellite_measured'] is False
+          assert b['real_energy_savings_proven'] is False
+          assert b['realized_economic_savings_proven'] is False
+          print('SAT truth boundary PASS')
+          PY
+          rm -f sat-001/RESULTS.json
+      - name: Provider contract truth-boundary lint
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('docs/GPT_COGNITIVE_PROVIDER_HANDOFF.md').read_text()
+          required=[
+            'does not by itself prove provider-side performance improvement',
+            'hidden chain-of-thought',
+            'MEASURED',
+            'DECLARED',
+            'MODELLED',
+            'NOT_MEASURED',
+            'must not contain provider API keys',
+          ]
+          missing=[x for x in required if x not in p]
+          assert not missing, missing
+          print('Provider evidence boundary PASS')
+          PY
+
+  azure-live-llm-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+      AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+      AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
+      EDEN_REQUESTS: '1'
+      EDEN_CONCURRENCY: '1'
+      EDEN_MAX_OUTPUT_TOKENS: '64'
+      EDEN_OUTPUT_DIR: 'eden-refinery/results/full-llm-smoke'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Azure credential preflight
+        id: preflight
+        shell: bash
+        run: |
+          if [ -n "$AZURE_OPENAI_ENDPOINT" ] && [ -n "$AZURE_OPENAI_API_KEY" ] && [ -n "$AZURE_OPENAI_DEPLOYMENT" ]; then
+            echo 'configured=true' >> "$GITHUB_OUTPUT"
+            echo 'Azure provider credentials present; one-request measured smoke run enabled.'
+          else
+            echo 'configured=false' >> "$GITHUB_OUTPUT"
+            echo 'Azure provider credentials absent; live provider test remains CONFIGURED_NOT_MEASURED.'
+          fi
+      - name: Run one measured Azure OpenAI request through EDEN Refinery
+        if: steps.preflight.outputs.configured == 'true'
+        run: python eden-refinery/eden_refinery_benchmark.py
+      - name: Verify generated evidence package
+        if: steps.preflight.outputs.configured == 'true'
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          root=Path('eden-refinery/results/full-llm-smoke')
+          manifest=json.loads((root/'manifest.json').read_text())
+          records=root/'records.jsonl'
+          assert manifest['requests_requested']==1
+          assert manifest['requests_succeeded']==1
+          assert manifest['requests_failed']==0
+          assert manifest['claim_class']=='MEASURED'
+          assert manifest['records_file_sha256']==hashlib.sha256(records.read_bytes()).hexdigest()
+          assert manifest['merkle_root_sha256']
+          print('LIVE AZURE LLM EVIDENCE PASS')
+          PY
+      - name: Record explicit non-measurement when Azure is unavailable
+        if: steps.preflight.outputs.configured != 'true'
+        run: |
+          mkdir -p eden-refinery/results/full-llm-smoke
+          printf '%s\n' '{"schema":"eden.llm.verification.v1","provider":"Azure OpenAI","status":"CONFIGURED_NOT_MEASURED","azure_requests_executed":0,"reason":"required provider credentials unavailable in workflow environment"}' > eden-refinery/results/full-llm-smoke/not-measured.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eden-full-llm-verification
+          path: eden-refinery/results/full-llm-smoke/
