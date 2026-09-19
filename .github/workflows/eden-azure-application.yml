@@ -1,0 +1,239 @@
+name: eden-azure-application
+
+on:
+  push:
+    paths:
+      - 'experiments/eden-azure-application-001/**'
+      - '.github/workflows/eden-azure-application.yml'
+  pull_request:
+    paths:
+      - 'experiments/eden-azure-application-001/**'
+      - '.github/workflows/eden-azure-application.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile
+        run: |
+          python -m py_compile experiments/eden-azure-application-001/azure_application_001.py
+          python -m py_compile experiments/eden-azure-application-001/test_azure_application_001.py
+      - name: Unit and concurrency tests
+        run: python -m unittest experiments/eden-azure-application-001/test_azure_application_001.py
+      - name: Isolated-process smoke benchmark
+        run: |
+          python experiments/eden-azure-application-001/azure_application_001.py \
+            --requests 60 --iterations 500 --reuse 0.50 --concurrency 4 \
+            --seed 260907 --environment CI_LOCAL --output-dir /tmp/eden-app
+      - name: Enforce evidence and truth boundaries
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          files = list(Path('/tmp/eden-app').glob('*.json'))
+          assert len(files) == 1
+          report = json.loads(files[0].read_text())
+          expected_class = ('MEASURED_AZURE_VM_LOCAL_HTTP_HARNESS'
+                            if report['host']['azure_hardware_signal']
+                            else 'MEASURED_LOCAL_HTTP_HARNESS')
+          assert report['evidence_class'] == expected_class
+          assert report['comparison']['output_equivalence']
+          assert report['comparison']['execution_accounting_valid']
+          assert report['arms']['EDEN']['verification_failures'] == 0
+          assert report['arms']['EDEN']['verification_attempts'] == report['arms']['EDEN']['reuse_hits']
+          assert report['arms']['EDEN']['verification_hit_attempts'] == report['arms']['EDEN']['reuse_hits']
+          assert report['arms']['CONTROL']['application_payload_bytes'] == report['arms']['EDEN']['application_payload_bytes']
+          assert 'actual Azure invoice savings' in report['truth_boundary']['not_claimed']
+          assert 'statistical significance or confidence intervals from one run per arm' in report['truth_boundary']['not_claimed']
+          print(json.dumps(report['comparison'], indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eden-azure-application-smoke-evidence
+          path: /tmp/eden-app/
+          if-no-files-found: error
+
+  million-iteration-shards:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, 'Run 1M-iteration Azure shards')
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Record runner context
+        run: |
+          mkdir -p "/tmp/eden-1m-shard-${{ matrix.shard }}"
+          {
+            date -u
+            uname -a
+            python --version
+            nproc
+            cat /sys/class/dmi/id/sys_vendor 2>/dev/null || true
+            cat /sys/class/dmi/id/product_name 2>/dev/null || true
+            git rev-parse HEAD
+          } | tee "/tmp/eden-1m-shard-${{ matrix.shard }}/RUNNER-CONTEXT.txt"
+      - name: Run one-million-iteration shard
+        run: |
+          python -u experiments/eden-azure-application-001/azure_application_001.py \
+            --requests 1000 --iterations 1000000 --reuse 0.50 --concurrency 8 \
+            --seed "$((261000 + ${{ matrix.shard }}))" \
+            --environment "GITHUB_HOSTED_MICROSOFT_RUNNER_SHARD_${{ matrix.shard }}" \
+            --output-dir "/tmp/eden-1m-shard-${{ matrix.shard }}" \
+            | tee "/tmp/eden-1m-shard-${{ matrix.shard }}/TERMINAL-OUTPUT.txt"
+      - name: Enforce shard acceptance gates
+        run: |
+          python - "${{ matrix.shard }}" <<'PY'
+          import json, sys
+          from pathlib import Path
+          shard = sys.argv[1]
+          files = list(Path(f'/tmp/eden-1m-shard-{shard}').glob('*.json'))
+          assert len(files) == 1
+          report = json.loads(files[0].read_text())
+          assert report['configuration']['requests_per_arm'] == 1000
+          assert report['configuration']['iterations_per_full_execution'] == 1000000
+          assert report['configuration']['realized_reuse_fraction'] == 0.5
+          assert report['comparison']['output_equivalence']
+          assert report['comparison']['execution_accounting_valid']
+          assert report['arms']['CONTROL']['full_executions'] == 1000
+          assert report['arms']['CACHE']['full_executions'] == 500
+          assert report['arms']['EDEN']['full_executions'] == 500
+          assert report['arms']['EDEN']['verification_hit_attempts'] == 500
+          assert report['arms']['EDEN']['verification_failures'] == 0
+          assert report['arms']['CONTROL']['application_payload_bytes'] == report['arms']['CACHE']['application_payload_bytes'] == report['arms']['EDEN']['application_payload_bytes']
+          print(f'SHARD {shard} ACCEPTANCE: PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eden-azure-1m-iteration-shard-${{ matrix.shard }}
+          path: /tmp/eden-1m-shard-${{ matrix.shard }}/
+          if-no-files-found: error
+
+  aggregate-million-iteration-shards:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, 'Run 1M-iteration Azure shards')
+    needs: million-iteration-shards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: eden-azure-1m-iteration-shard-*
+          path: /tmp/eden-1m-all
+      - name: Aggregate committed shard evidence
+        run: |
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          files = sorted(Path('/tmp/eden-1m-all').glob('**/EDEN-AZURE-APPLICATION-001-*.json'))
+          assert len(files) == 10, len(files)
+          reports = [json.loads(path.read_text()) for path in files]
+          assert all(r['comparison']['output_equivalence'] for r in reports)
+          assert all(r['arms']['EDEN']['verification_failures'] == 0 for r in reports)
+          arms = {}
+          for mode in ('CONTROL', 'CACHE', 'EDEN'):
+              values = [r['arms'][mode] for r in reports]
+              cpu, wall = sum(v['cpu_seconds'] for v in values), sum(v['wall_seconds'] for v in values)
+              arms[mode] = {
+                  'cpu_seconds_sum': cpu, 'wall_seconds_sum': wall,
+                  'successful_requests': sum(v['successful_requests'] for v in values),
+                  'full_executions': sum(v['full_executions'] for v in values),
+                  'executions_avoided_vs_control': sum(v['executions_avoided_vs_control'] for v in values),
+                  'max_rss_kb_max': max(v['max_rss_kb'] for v in values),
+                  'application_payload_bytes_total': sum(v['application_payload_bytes']['total'] for v in values),
+                  'aggregate_throughput_requests_per_second': sum(v['successful_requests'] for v in values)/wall}
+          c, k, e = arms['CONTROL'], arms['CACHE'], arms['EDEN']
+          aggregate = {
+            'schema':'eden.azure.application.sharded_aggregate.v1',
+            'experiment':'EDEN-AZURE-APPLICATION-001',
+            'evidence_class':'AGGREGATED_MEASURED_AZURE_VM_LOCAL_HTTP_HARNESS',
+            'shards':10, 'requests_per_arm_total':10000,
+            'iterations_per_full_execution':1000000, 'reuse_fraction':0.5,
+            'source_report_commitments':[r['report_commitment'] for r in reports],
+            'arms':arms,
+            'comparison':{
+              'output_equivalence_all_shards':True,
+              'eden_cpu_reduction_vs_control_pct':(1-e['cpu_seconds_sum']/c['cpu_seconds_sum'])*100,
+              'eden_wall_reduction_vs_control_pct':(1-e['wall_seconds_sum']/c['wall_seconds_sum'])*100,
+              'eden_throughput_gain_vs_control_pct':(e['aggregate_throughput_requests_per_second']/c['aggregate_throughput_requests_per_second']-1)*100,
+              'eden_cpu_overhead_vs_cache_pct':(e['cpu_seconds_sum']/k['cpu_seconds_sum']-1)*100},
+            'truth_boundary':{'not_claimed':['single-VM continuous execution','Azure invoice savings','energy reduction','independent validation']}}
+          raw=json.dumps(aggregate,sort_keys=True,separators=(',',':')).encode()
+          aggregate['aggregate_commitment']='sha256:'+hashlib.sha256(raw).hexdigest()
+          out=Path('/tmp/eden-1m-aggregate'); out.mkdir(parents=True,exist_ok=True)
+          (out/'EDEN-AZURE-APPLICATION-001-1M-AGGREGATE.json').write_text(json.dumps(aggregate,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(aggregate['comparison'],indent=2))
+          print('AGGREGATE ACCEPTANCE: PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eden-azure-1m-iteration-aggregate
+          path: /tmp/eden-1m-aggregate/
+          if-no-files-found: error
+
+  full-github-azure-runner:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, 'Run full GitHub Azure benchmark')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Record runner context
+        run: |
+          mkdir -p /tmp/eden-azure-full
+          {
+            date -u
+            uname -a
+            python --version
+            nproc
+            cat /etc/os-release
+            cat /sys/class/dmi/id/sys_vendor 2>/dev/null || true
+            cat /sys/class/dmi/id/product_name 2>/dev/null || true
+            git rev-parse HEAD
+          } | tee /tmp/eden-azure-full/RUNNER-CONTEXT.txt
+      - name: Run full benchmark
+        run: |
+          python -u experiments/eden-azure-application-001/azure_application_001.py \
+            --requests 10000 --iterations 30000 --reuse 0.50 --concurrency 8 \
+            --seed 260907 --environment GITHUB_HOSTED_MICROSOFT_RUNNER \
+            --output-dir /tmp/eden-azure-full | tee /tmp/eden-azure-full/TERMINAL-OUTPUT.txt
+      - name: Enforce full-run acceptance gates
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          files = list(Path('/tmp/eden-azure-full').glob('*.json'))
+          assert len(files) == 1
+          report = json.loads(files[0].read_text())
+          assert report['configuration']['requests_per_arm'] == 10000
+          assert report['configuration']['realized_reuse_fraction'] == 0.5
+          assert report['comparison']['output_equivalence']
+          assert report['comparison']['execution_accounting_valid']
+          assert report['arms']['CONTROL']['full_executions'] == 10000
+          assert report['arms']['CACHE']['full_executions'] == 5000
+          assert report['arms']['EDEN']['full_executions'] == 5000
+          assert report['arms']['EDEN']['executions_avoided_vs_control'] == 5000
+          assert report['arms']['EDEN']['verification_hit_attempts'] == 5000
+          assert report['arms']['EDEN']['verification_failures'] == 0
+          assert report['arms']['CONTROL']['application_payload_bytes'] == report['arms']['CACHE']['application_payload_bytes'] == report['arms']['EDEN']['application_payload_bytes']
+          print('FULL PILOT ACCEPTANCE: PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eden-azure-application-full-github-runner
+          path: /tmp/eden-azure-full/
+          if-no-files-found: error
